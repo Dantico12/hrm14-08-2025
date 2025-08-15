@@ -599,7 +599,7 @@ $conn->close();
                     <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director', 'section_head', 'dept_head'])): ?>
                         <a href="performance_appraisal.php" class="leave-tab active">Performance Appraisal</a>
                     <?php endif; ?>
-                    <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director', 'section_head', 'dept_head'])): ?>
+                    <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director'])): ?>
                         <a href="appraisal_management.php" class="leave-tab">Appraisal Management</a>
                     <?php endif; ?>
                 </div>

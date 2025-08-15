@@ -342,7 +342,7 @@ $conn->close();
                     <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director', 'section_head', 'dept_head'])): ?>
                     <a href="performance_appraisal.php" class="leave-tab">Performance Appraisal</a>
                     <?php endif; ?>
-                    <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing director', 'section_head', 'dept_head'])): ?>
+                    <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing director'])): ?>
                     <a href="appraisal_management.php" class="leave-tab">Appraisal Management</a>
                     <?php endif; ?>
                 </div>
@@ -397,7 +397,7 @@ $conn->close();
                                 <!-- Total Score Display -->
                                 <div class="total-score">
                                     <h5>Overall Score</h5>
-                                    <div class="score"><?php echo number_format($weighted_average, 1); ?>%</div>
+                                    <div class="score"><?php echo number_format($score, 1); ?>%</div>
                                 </div>
 
                                 <!-- Performance Indicators Table -->
