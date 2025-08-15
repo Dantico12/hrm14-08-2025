@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Aug 14, 2025 at 09:45 AM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- Host: localhost
+-- Generation Time: Aug 15, 2025 at 02:59 PM
+-- Server version: 10.4.28-MariaDB
+-- PHP Version: 8.2.4
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `hr31`
+-- Database: `maggie_hr`
 --
 
 -- --------------------------------------------------------
@@ -46,7 +46,10 @@ INSERT INTO `appraisal_cycles` (`id`, `name`, `start_date`, `end_date`, `status`
 (2, 'Q1 2025/2026 Performance Review', '2025-07-01', '2025-09-30', 'active', '2025-08-11 11:29:14', '2025-08-11 13:53:26'),
 (3, 'Q2 2025/2026 Performance Review', '2025-10-01', '2025-12-31', 'active', '2025-08-11 11:29:14', '2025-08-11 13:53:36'),
 (4, 'Annual Review 2025', '2025-01-01', '2025-12-31', 'active', '2025-08-11 11:29:14', '2025-08-11 11:29:14'),
-(5, 'Q3 2025/2026 Performance Review', '2026-01-01', '2026-03-31', 'active', '2025-08-11 13:52:29', '2025-08-11 13:52:29');
+(5, 'Q3 2025/2026 Performance Review', '2026-01-01', '2026-03-31', 'active', '2025-08-11 13:52:29', '2025-08-11 13:52:29'),
+(6, 'Q1 2024/2025 Performance Review', '2024-07-01', '2024-09-30', 'completed', '2024-08-01 07:00:00', '2025-08-15 07:47:04'),
+(7, 'Q2 2024/2025 Performance Review', '2024-10-01', '2024-12-31', 'completed', '2024-11-01 07:00:00', '2025-08-15 07:47:04'),
+(8, 'Mid-Year Review 2025', '2025-01-01', '2025-06-30', 'active', '2025-02-01 07:00:00', '2025-08-15 07:47:04');
 
 -- --------------------------------------------------------
 
@@ -69,48 +72,224 @@ CREATE TABLE `appraisal_scores` (
 --
 
 INSERT INTO `appraisal_scores` (`id`, `employee_appraisal_id`, `performance_indicator_id`, `score`, `appraiser_comment`, `created_at`, `updated_at`) VALUES
-(1, 2, 1, 1.00, '', '2025-08-11 13:39:38', '2025-08-13 07:40:26'),
-(2, 2, 2, 1.00, '', '2025-08-11 13:39:38', '2025-08-13 07:40:26'),
-(3, 2, 3, 1.00, '', '2025-08-11 13:39:38', '2025-08-13 07:40:26'),
-(4, 2, 4, 1.00, '', '2025-08-11 13:39:38', '2025-08-13 07:40:26'),
-(5, 2, 5, 1.00, '', '2025-08-11 13:39:39', '2025-08-13 07:40:26'),
-(6, 2, 6, 1.00, '', '2025-08-11 13:39:39', '2025-08-13 07:40:26'),
-(7, 2, 7, 1.00, '', '2025-08-11 13:39:39', '2025-08-13 07:40:27'),
-(8, 8, 1, 5.00, '', '2025-08-13 05:03:58', '2025-08-13 05:03:58'),
-(9, 8, 2, 0.00, '', '2025-08-13 05:03:59', '2025-08-13 05:03:59'),
-(10, 8, 3, 0.00, '', '2025-08-13 05:03:59', '2025-08-13 05:03:59'),
-(11, 8, 4, 0.00, '', '2025-08-13 05:03:59', '2025-08-13 05:03:59'),
-(12, 8, 5, 0.00, '', '2025-08-13 05:03:59', '2025-08-13 05:03:59'),
-(13, 8, 6, 0.00, '', '2025-08-13 05:03:59', '2025-08-13 05:03:59'),
-(14, 8, 7, 0.00, '', '2025-08-13 05:03:59', '2025-08-13 05:03:59'),
-(15, 3, 1, 1.00, '', '2025-08-13 07:32:01', '2025-08-13 07:32:11'),
-(16, 3, 2, 1.00, '', '2025-08-13 07:32:01', '2025-08-13 07:32:11'),
-(18, 3, 3, 1.00, '', '2025-08-13 07:32:01', '2025-08-13 07:32:11'),
-(19, 3, 4, 1.00, '', '2025-08-13 07:32:01', '2025-08-13 07:32:11'),
-(20, 3, 5, 1.00, '', '2025-08-13 07:32:01', '2025-08-13 07:32:11'),
-(21, 3, 6, 1.00, '', '2025-08-13 07:32:01', '2025-08-13 07:32:11'),
-(22, 3, 7, 1.00, '', '2025-08-13 07:32:01', '2025-08-13 07:32:11'),
-(135, 5, 1, 4.30, '', '2025-08-13 07:51:10', '2025-08-13 08:14:52'),
-(136, 5, 2, 9.99, '', '2025-08-13 07:51:10', '2025-08-13 08:14:52'),
-(138, 5, 3, 0.00, '', '2025-08-13 07:51:11', '2025-08-13 08:14:53'),
-(139, 5, 4, 0.00, '', '2025-08-13 07:51:11', '2025-08-13 08:14:53'),
-(140, 5, 5, 0.00, '', '2025-08-13 07:51:11', '2025-08-13 08:14:53'),
-(141, 5, 6, 0.00, '', '2025-08-13 07:51:11', '2025-08-13 08:14:53'),
-(142, 5, 7, 0.00, '', '2025-08-13 07:51:11', '2025-08-13 08:14:53'),
-(199, 7, 1, 3.00, '', '2025-08-14 05:58:06', '2025-08-14 06:23:06'),
-(200, 7, 2, 3.00, '', '2025-08-14 05:58:08', '2025-08-14 06:23:07'),
-(201, 7, 3, 3.00, '', '2025-08-14 05:58:09', '2025-08-14 06:23:07'),
-(202, 7, 4, 3.00, '', '2025-08-14 05:58:09', '2025-08-14 06:23:08'),
-(203, 7, 5, 3.00, '', '2025-08-14 05:58:10', '2025-08-14 06:23:08'),
-(204, 7, 6, 3.00, '', '2025-08-14 05:58:10', '2025-08-14 06:23:09'),
-(205, 7, 7, 3.00, '', '2025-08-14 05:58:10', '2025-08-14 06:23:10'),
-(311, 1, 1, 2.00, '', '2025-08-14 06:24:45', '2025-08-14 06:25:12'),
-(312, 1, 2, 2.00, '', '2025-08-14 06:24:46', '2025-08-14 06:25:12'),
-(313, 1, 3, 2.00, '', '2025-08-14 06:24:46', '2025-08-14 06:25:12'),
-(314, 1, 4, 2.00, '', '2025-08-14 06:24:46', '2025-08-14 06:25:12'),
-(315, 1, 5, 2.00, '', '2025-08-14 06:24:47', '2025-08-14 06:25:12'),
-(316, 1, 6, 2.00, '', '2025-08-14 06:24:47', '2025-08-14 06:25:13'),
-(317, 1, 7, 2.00, '', '2025-08-14 06:24:48', '2025-08-14 06:25:13');
+(1, 2, 1, 1.00, '', '2025-08-11 13:39:38', '2025-08-15 07:47:04'),
+(2, 2, 2, 1.00, '', '2025-08-11 13:39:38', '2025-08-15 07:47:04'),
+(3, 2, 3, 1.00, '', '2025-08-11 13:39:38', '2025-08-15 07:47:04'),
+(4, 2, 4, 1.00, '', '2025-08-11 13:39:38', '2025-08-15 07:47:04'),
+(5, 2, 5, 1.00, '', '2025-08-11 13:39:39', '2025-08-15 07:47:04'),
+(6, 2, 6, 1.00, '', '2025-08-11 13:39:39', '2025-08-15 07:47:04'),
+(7, 2, 7, 1.00, '', '2025-08-11 13:39:39', '2025-08-15 07:47:04'),
+(8, 8, 1, 5.00, '', '2025-08-13 05:03:58', '2025-08-15 07:47:04'),
+(9, 8, 2, 0.00, '', '2025-08-13 05:03:59', '2025-08-15 07:47:04'),
+(10, 8, 3, 0.00, '', '2025-08-13 05:03:59', '2025-08-15 07:47:04'),
+(11, 8, 4, 0.00, '', '2025-08-13 05:03:59', '2025-08-15 07:47:04'),
+(12, 8, 5, 0.00, '', '2025-08-13 05:03:59', '2025-08-15 07:47:04'),
+(13, 8, 6, 0.00, '', '2025-08-13 05:03:59', '2025-08-15 07:47:04'),
+(14, 8, 7, 0.00, '', '2025-08-13 05:03:59', '2025-08-15 07:47:04'),
+(15, 3, 1, 1.00, '', '2025-08-13 07:32:01', '2025-08-15 07:47:04'),
+(16, 3, 2, 1.00, '', '2025-08-13 07:32:01', '2025-08-15 07:47:04'),
+(18, 3, 3, 1.00, '', '2025-08-13 07:32:01', '2025-08-15 07:47:04'),
+(19, 3, 4, 1.00, '', '2025-08-13 07:32:01', '2025-08-15 07:47:04'),
+(20, 3, 5, 1.00, '', '2025-08-13 07:32:01', '2025-08-15 07:47:04'),
+(21, 3, 6, 1.00, '', '2025-08-13 07:32:01', '2025-08-15 07:47:04'),
+(22, 3, 7, 1.00, '', '2025-08-13 07:32:01', '2025-08-15 07:47:04'),
+(135, 5, 1, 4.30, '', '2025-08-13 07:51:10', '2025-08-15 07:47:04'),
+(136, 5, 2, 9.99, '', '2025-08-13 07:51:10', '2025-08-15 07:47:04'),
+(138, 5, 3, 0.00, '', '2025-08-13 07:51:11', '2025-08-15 07:47:04'),
+(139, 5, 4, 0.00, '', '2025-08-13 07:51:11', '2025-08-15 07:47:04'),
+(140, 5, 5, 0.00, '', '2025-08-13 07:51:11', '2025-08-15 07:47:04'),
+(141, 5, 6, 0.00, '', '2025-08-13 07:51:11', '2025-08-15 07:47:04'),
+(142, 5, 7, 0.00, '', '2025-08-13 07:51:11', '2025-08-15 07:47:04'),
+(199, 7, 1, 3.00, '', '2025-08-14 05:58:06', '2025-08-15 07:47:04'),
+(200, 7, 2, 2.10, '', '2025-08-14 05:58:08', '2025-08-15 07:47:04'),
+(201, 7, 3, 3.00, '', '2025-08-14 05:58:09', '2025-08-15 07:47:04'),
+(202, 7, 4, 3.00, '', '2025-08-14 05:58:09', '2025-08-15 07:47:04'),
+(203, 7, 5, 3.00, '', '2025-08-14 05:58:10', '2025-08-15 07:47:04'),
+(204, 7, 6, 3.00, '', '2025-08-14 05:58:10', '2025-08-15 07:47:04'),
+(205, 7, 7, 3.00, '', '2025-08-14 05:58:10', '2025-08-15 07:47:04'),
+(311, 1, 1, 2.00, '', '2025-08-14 06:24:45', '2025-08-15 07:47:04'),
+(312, 1, 2, 2.00, '', '2025-08-14 06:24:46', '2025-08-15 07:47:04'),
+(313, 1, 3, 2.00, '', '2025-08-14 06:24:46', '2025-08-15 07:47:04'),
+(314, 1, 4, 2.00, '', '2025-08-14 06:24:46', '2025-08-15 07:47:04'),
+(315, 1, 5, 2.00, '', '2025-08-14 06:24:47', '2025-08-15 07:47:04'),
+(316, 1, 6, 2.00, '', '2025-08-14 06:24:47', '2025-08-15 07:47:04'),
+(317, 1, 7, 2.00, '', '2025-08-14 06:24:48', '2025-08-15 07:47:04'),
+(381, 24, 1, 4.00, '', '2025-08-14 08:29:57', '2025-08-15 07:47:04'),
+(382, 24, 2, 3.00, '', '2025-08-14 08:29:57', '2025-08-15 07:47:04'),
+(383, 24, 3, 2.00, '', '2025-08-14 08:29:57', '2025-08-15 07:47:04'),
+(384, 24, 4, 3.00, '', '2025-08-14 08:29:57', '2025-08-15 07:47:04'),
+(385, 24, 5, 2.00, '', '2025-08-14 08:29:57', '2025-08-15 07:47:04'),
+(386, 24, 6, 2.00, '', '2025-08-14 08:29:57', '2025-08-15 07:47:04'),
+(387, 24, 7, 1.00, '', '2025-08-14 08:29:57', '2025-08-15 07:47:04'),
+(451, 25, 1, 0.00, '', '2025-08-14 08:37:40', '2025-08-15 07:47:04'),
+(452, 25, 2, 0.00, '', '2025-08-14 08:37:40', '2025-08-15 07:47:04'),
+(453, 25, 3, 0.00, '', '2025-08-14 08:37:40', '2025-08-15 07:47:04'),
+(454, 25, 4, 0.00, '', '2025-08-14 08:37:40', '2025-08-15 07:47:04'),
+(455, 25, 5, 0.00, '', '2025-08-14 08:37:40', '2025-08-15 07:47:04'),
+(456, 25, 6, 0.00, '', '2025-08-14 08:37:40', '2025-08-15 07:47:04'),
+(457, 25, 7, 0.00, '', '2025-08-14 08:37:40', '2025-08-15 07:47:04'),
+(458, 26, 1, 0.00, '', '2025-08-14 08:57:21', '2025-08-15 07:47:04'),
+(459, 26, 2, 0.00, '', '2025-08-14 08:57:21', '2025-08-15 07:47:04'),
+(460, 26, 3, 0.00, '', '2025-08-14 08:57:21', '2025-08-15 07:47:04'),
+(461, 26, 4, 0.00, '', '2025-08-14 08:57:21', '2025-08-15 07:47:04'),
+(462, 26, 5, 0.00, '', '2025-08-14 08:57:21', '2025-08-15 07:47:04'),
+(463, 26, 6, 0.00, '', '2025-08-14 08:57:21', '2025-08-15 07:47:04'),
+(464, 26, 7, 0.00, '', '2025-08-14 08:57:21', '2025-08-15 07:47:04'),
+(465, 10, 1, 0.00, '', '2025-08-14 08:57:41', '2025-08-15 07:47:04'),
+(466, 10, 2, 0.00, '', '2025-08-14 08:57:41', '2025-08-15 07:47:04'),
+(467, 10, 3, 0.00, '', '2025-08-14 08:57:41', '2025-08-15 07:47:04'),
+(468, 10, 4, 0.00, '', '2025-08-14 08:57:41', '2025-08-15 07:47:04'),
+(469, 10, 5, 0.00, '', '2025-08-14 08:57:41', '2025-08-15 07:47:04'),
+(470, 10, 6, 0.00, '', '2025-08-14 08:57:41', '2025-08-15 07:47:04'),
+(471, 10, 7, 0.00, '', '2025-08-14 08:57:41', '2025-08-15 07:47:04'),
+(472, 6, 1, 0.00, '', '2025-08-14 08:58:22', '2025-08-15 07:47:04'),
+(473, 6, 2, 0.00, '', '2025-08-14 08:58:22', '2025-08-15 07:47:04'),
+(474, 6, 3, 0.00, '', '2025-08-14 08:58:22', '2025-08-15 07:47:04'),
+(475, 6, 4, 0.00, '', '2025-08-14 08:58:22', '2025-08-15 07:47:04'),
+(476, 6, 5, 0.00, '', '2025-08-14 08:58:22', '2025-08-15 07:47:04'),
+(477, 6, 6, 0.00, '', '2025-08-14 08:58:22', '2025-08-15 07:47:04'),
+(478, 6, 7, 0.00, '', '2025-08-14 08:58:22', '2025-08-15 07:47:04'),
+(486, 19, 1, 4.00, '', '2025-08-14 09:49:43', '2025-08-15 07:47:04'),
+(487, 19, 2, 4.00, '', '2025-08-14 09:49:43', '2025-08-15 07:47:04'),
+(488, 19, 3, 4.00, '', '2025-08-14 09:49:43', '2025-08-15 07:47:04'),
+(489, 19, 4, 4.00, '', '2025-08-14 09:49:43', '2025-08-15 07:47:04'),
+(490, 19, 5, 4.00, '', '2025-08-14 09:49:43', '2025-08-15 07:47:04'),
+(491, 19, 6, 4.00, '', '2025-08-14 09:49:43', '2025-08-15 07:47:04'),
+(492, 19, 7, 4.00, '', '2025-08-14 09:49:43', '2025-08-15 07:47:04'),
+(528, 1, 9, 4.32, 'Good performance in Customer Service Excellence. Shows consistent effort and results.', '2025-08-11 12:08:07', '2025-08-15 07:47:04'),
+(529, 3, 9, 3.79, 'Good performance in Customer Service Excellence. Shows consistent effort and results.', '2025-08-12 08:41:45', '2025-08-15 07:47:04'),
+(530, 24, 9, 3.01, 'Good performance in Customer Service Excellence. Shows consistent effort and results.', '2025-08-14 08:29:44', '2025-08-15 07:47:04'),
+(531, 1, 10, 4.68, 'Good performance in Technical Competency. Shows consistent effort and results.', '2025-08-11 12:08:07', '2025-08-15 07:47:04'),
+(532, 3, 10, 3.38, 'Good performance in Technical Competency. Shows consistent effort and results.', '2025-08-12 08:41:45', '2025-08-15 07:47:04'),
+(533, 24, 10, 3.83, 'Good performance in Technical Competency. Shows consistent effort and results.', '2025-08-14 08:29:44', '2025-08-15 07:47:04'),
+(534, 1, 11, 4.03, 'Good performance in Leadership Potential. Shows consistent effort and results.', '2025-08-11 12:08:07', '2025-08-15 07:47:04'),
+(535, 3, 11, 3.65, 'Good performance in Leadership Potential. Shows consistent effort and results.', '2025-08-12 08:41:45', '2025-08-15 07:47:04'),
+(536, 24, 11, 3.16, 'Good performance in Leadership Potential. Shows consistent effort and results.', '2025-08-14 08:29:44', '2025-08-15 07:47:04'),
+(537, 1, 12, 3.85, 'Good performance in Adaptability. Shows consistent effort and results.', '2025-08-11 12:08:07', '2025-08-15 07:47:04'),
+(538, 3, 12, 4.77, 'Good performance in Adaptability. Shows consistent effort and results.', '2025-08-12 08:41:45', '2025-08-15 07:47:04'),
+(539, 24, 12, 3.28, 'Good performance in Adaptability. Shows consistent effort and results.', '2025-08-14 08:29:44', '2025-08-15 07:47:04'),
+(543, 33, 1, 5.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(544, 33, 2, 3.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(545, 33, 10, 3.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(546, 33, 3, 1.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(547, 33, 9, 1.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(548, 33, 4, 2.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(549, 33, 12, 1.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(550, 33, 5, 2.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(551, 33, 11, 2.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(552, 33, 6, 1.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(553, 33, 7, 2.00, '', '2025-08-15 12:00:51', '2025-08-15 12:01:07'),
+(664, 4, 1, 3.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(665, 4, 2, 4.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(666, 4, 10, 4.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(667, 4, 3, 2.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(668, 4, 9, 3.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(669, 4, 4, 3.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(670, 4, 12, 3.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(671, 4, 5, 3.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(672, 4, 11, 3.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(673, 4, 6, 4.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(674, 4, 7, 2.00, '', '2025-08-15 12:33:23', '2025-08-15 12:33:44'),
+(796, 28, 1, 3.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(797, 28, 2, 2.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(798, 28, 10, 4.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(799, 28, 3, 4.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(800, 28, 9, 4.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(801, 28, 4, 4.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(802, 28, 12, 4.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(803, 28, 5, 4.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(804, 28, 11, 4.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(805, 28, 6, 3.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(806, 28, 7, 3.00, '', '2025-08-15 12:34:05', '2025-08-15 12:34:26'),
+(906, 37, 1, 3.00, '', '2025-08-15 12:34:56', '2025-08-15 12:35:10'),
+(907, 37, 2, 2.00, '', '2025-08-15 12:34:56', '2025-08-15 12:35:10'),
+(908, 37, 10, 3.00, '', '2025-08-15 12:34:57', '2025-08-15 12:35:10'),
+(909, 37, 3, 3.00, '', '2025-08-15 12:34:57', '2025-08-15 12:35:10'),
+(910, 37, 9, 3.00, '', '2025-08-15 12:34:57', '2025-08-15 12:35:10'),
+(911, 37, 4, 2.00, '', '2025-08-15 12:34:57', '2025-08-15 12:35:10'),
+(912, 37, 12, 2.00, '', '2025-08-15 12:34:57', '2025-08-15 12:35:10'),
+(913, 37, 5, 2.00, '', '2025-08-15 12:34:57', '2025-08-15 12:35:10'),
+(914, 37, 11, 2.00, '', '2025-08-15 12:34:57', '2025-08-15 12:35:10'),
+(915, 37, 6, 2.00, '', '2025-08-15 12:34:57', '2025-08-15 12:35:10'),
+(916, 37, 7, 2.00, '', '2025-08-15 12:34:57', '2025-08-15 12:35:10'),
+(1027, 18, 1, 2.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:51'),
+(1028, 18, 2, 2.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:51'),
+(1029, 18, 10, 3.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:51'),
+(1030, 18, 3, 3.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:51'),
+(1031, 18, 9, 3.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:51'),
+(1032, 18, 4, 3.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:52'),
+(1033, 18, 12, 3.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:52'),
+(1034, 18, 5, 2.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:52'),
+(1035, 18, 11, 3.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:52'),
+(1036, 18, 6, 4.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:52'),
+(1037, 18, 7, 4.00, '', '2025-08-15 12:35:28', '2025-08-15 12:35:52'),
+(1103, 38, 1, 1.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1104, 38, 2, 1.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1105, 38, 10, 1.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1106, 38, 3, 1.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1107, 38, 9, 1.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1108, 38, 4, 1.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1109, 38, 12, 2.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1110, 38, 5, 2.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1111, 38, 11, 2.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1112, 38, 6, 2.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27'),
+(1113, 38, 7, 2.00, '', '2025-08-15 12:36:12', '2025-08-15 12:36:27');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `appraisal_summary_cache`
+--
+
+CREATE TABLE `appraisal_summary_cache` (
+  `id` int(11) NOT NULL,
+  `appraisal_cycle_id` int(11) NOT NULL,
+  `quarter` varchar(10) NOT NULL,
+  `total_completed` int(11) DEFAULT 0,
+  `average_score` decimal(5,2) DEFAULT 0.00,
+  `last_updated` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `appraisal_summary_cache`
+--
+
+INSERT INTO `appraisal_summary_cache` (`id`, `appraisal_cycle_id`, `quarter`, `total_completed`, `average_score`, `last_updated`) VALUES
+(1, 1, 'Q2', 1, 41.07, '2025-08-15 07:47:04'),
+(2, 3, 'Q4', 1, 56.15, '2025-08-15 07:47:04'),
+(3, 5, 'Q1', 1, 55.05, '2025-08-15 07:47:04');
+
+-- --------------------------------------------------------
+
+--
+-- Stand-in structure for view `completed_appraisals_view`
+-- (See below for the actual view)
+--
+CREATE TABLE `completed_appraisals_view` (
+`id` int(11)
+,`employee_id` int(11)
+,`appraiser_id` int(11)
+,`appraisal_cycle_id` int(11)
+,`employee_comment` text
+,`employee_comment_date` timestamp
+,`submitted_at` timestamp
+,`status` enum('draft','awaiting_employee','submitted','completed','awaiting_submission')
+,`created_at` timestamp
+,`updated_at` timestamp
+,`cycle_name` varchar(100)
+,`start_date` date
+,`end_date` date
+,`first_name` varchar(100)
+,`last_name` varchar(100)
+,`emp_id` varchar(50)
+,`designation` varchar(50)
+,`department_name` varchar(100)
+,`section_name` varchar(100)
+,`appraiser_first_name` varchar(100)
+,`appraiser_last_name` varchar(100)
+,`quarter` varchar(7)
+,`average_score_percentage` decimal(14,10)
+);
 
 -- --------------------------------------------------------
 
@@ -211,26 +390,40 @@ CREATE TABLE `employee_appraisals` (
 --
 
 INSERT INTO `employee_appraisals` (`id`, `employee_id`, `appraiser_id`, `appraisal_cycle_id`, `employee_comment`, `employee_comment_date`, `submitted_at`, `status`, `created_at`, `updated_at`) VALUES
-(1, 118, 5, 3, 'appraised', '2025-08-14 06:26:15', NULL, 'awaiting_employee', '2025-08-11 12:08:07', '2025-08-14 06:26:15'),
-(2, 136, 5, 3, NULL, NULL, NULL, 'awaiting_employee', '2025-08-11 12:54:09', '2025-08-13 07:40:27'),
-(3, 118, 5, 1, 'good', '2025-08-13 07:33:08', '2025-08-13 07:37:01', 'submitted', '2025-08-12 08:41:45', '2025-08-13 07:37:01'),
-(4, 136, 5, 1, NULL, NULL, NULL, 'draft', '2025-08-12 16:59:40', '2025-08-12 16:59:40'),
+(1, 118, 5, 3, 'I am satisfied with this appraisal. The feedback provided is constructive and will help me improve my performance in the coming period. I appreciate the recognition of my efforts in teamwork and quality of work.', '2025-08-14 06:26:15', '2025-08-18 12:08:07', 'submitted', '2025-08-11 12:08:07', '2025-08-15 07:47:04'),
+(2, 136, 5, 3, 'NO THANK YOU', '2025-08-14 08:32:40', NULL, 'awaiting_employee', '2025-08-11 12:54:09', '2025-08-14 09:37:52'),
+(3, 118, 5, 1, 'Thank you for the comprehensive evaluation. I agree with most of the assessments and will work on the areas identified for improvement, particularly in initiative and innovation. The appraisal process was fair and transparent.', '2025-08-13 07:33:08', '2025-08-13 07:37:01', 'submitted', '2025-08-12 08:41:45', '2025-08-15 07:47:04'),
+(4, 136, 5, 1, NULL, NULL, NULL, 'awaiting_employee', '2025-08-12 16:59:40', '2025-08-15 12:33:44'),
 (5, 143, 135, 1, NULL, NULL, NULL, 'awaiting_employee', '2025-08-12 17:57:25', '2025-08-13 08:14:53'),
-(6, 104, 135, 1, NULL, NULL, NULL, 'draft', '2025-08-12 17:57:37', '2025-08-12 17:57:37'),
-(7, 134, 135, 1, NULL, NULL, NULL, 'awaiting_employee', '2025-08-12 17:57:44', '2025-08-14 06:23:10'),
-(8, 121, 135, 1, NULL, NULL, NULL, 'awaiting_employee', '2025-08-12 17:57:53', '2025-08-13 05:04:00'),
-(10, 112, 135, 1, NULL, NULL, NULL, 'draft', '2025-08-12 18:14:29', '2025-08-12 18:14:29'),
+(6, 104, 135, 1, NULL, NULL, NULL, 'awaiting_employee', '2025-08-12 17:57:37', '2025-08-14 08:58:22'),
+(7, 134, 135, 1, NULL, NULL, NULL, 'awaiting_employee', '2025-08-12 17:57:44', '2025-08-14 08:19:30'),
+(8, 121, 135, 1, 'Good job', '2025-08-15 11:31:38', NULL, 'awaiting_employee', '2025-08-12 17:57:53', '2025-08-15 11:31:38'),
+(10, 112, 135, 1, NULL, NULL, NULL, 'awaiting_employee', '2025-08-12 18:14:29', '2025-08-14 08:57:41'),
 (11, 113, 135, 1, NULL, NULL, NULL, 'draft', '2025-08-12 18:14:30', '2025-08-12 18:14:30'),
 (12, 111, 135, 1, NULL, NULL, NULL, 'draft', '2025-08-12 18:29:42', '2025-08-12 18:29:42'),
 (13, 5, 135, 1, NULL, NULL, NULL, 'draft', '2025-08-12 18:29:43', '2025-08-12 18:29:43'),
 (14, 114, 135, 1, NULL, NULL, NULL, 'draft', '2025-08-12 18:29:43', '2025-08-12 18:29:43'),
 (17, 122, 135, 1, NULL, NULL, NULL, 'draft', '2025-08-12 18:36:02', '2025-08-12 18:36:02'),
-(18, 118, 5, 2, NULL, NULL, NULL, 'draft', '2025-08-13 07:40:36', '2025-08-13 07:40:36'),
-(19, 136, 5, 2, NULL, NULL, NULL, 'draft', '2025-08-13 07:40:36', '2025-08-13 07:40:36'),
+(18, 118, 5, 2, 'please my comment is wrong', '2025-08-15 12:37:39', NULL, 'awaiting_submission', '2025-08-13 07:40:36', '2025-08-15 12:41:37'),
+(19, 136, 5, 2, NULL, NULL, NULL, 'awaiting_employee', '2025-08-13 07:40:36', '2025-08-14 09:49:53'),
 (20, 104, 135, 5, NULL, NULL, NULL, 'draft', '2025-08-13 18:25:43', '2025-08-13 18:25:43'),
 (21, 104, 135, 3, NULL, NULL, NULL, 'draft', '2025-08-13 18:25:50', '2025-08-13 18:25:50'),
 (22, 104, 135, 2, NULL, NULL, NULL, 'draft', '2025-08-13 18:25:52', '2025-08-13 18:25:52'),
-(23, 118, 135, 5, NULL, NULL, NULL, 'draft', '2025-08-13 18:26:09', '2025-08-13 18:26:09');
+(23, 118, 135, 5, NULL, NULL, NULL, 'draft', '2025-08-13 18:26:09', '2025-08-13 18:26:09'),
+(24, 136, 5, 5, 'NOOOOO', '2025-08-14 08:31:37', '2025-08-14 10:02:30', 'submitted', '2025-08-14 08:29:44', '2025-08-14 10:02:30'),
+(25, 121, 135, 5, 'good job', '2025-08-15 11:31:49', NULL, 'awaiting_employee', '2025-08-14 08:37:34', '2025-08-15 11:31:49'),
+(26, 134, 135, 5, NULL, NULL, NULL, 'awaiting_employee', '2025-08-14 08:42:52', '2025-08-14 08:57:21'),
+(27, 135, 135, 1, NULL, NULL, NULL, 'draft', '2025-08-14 08:58:09', '2025-08-14 08:58:09'),
+(28, 136, 5, 4, NULL, NULL, NULL, 'awaiting_employee', '2025-08-14 09:37:09', '2025-08-15 12:34:26'),
+(30, 136, 135, 8, NULL, NULL, NULL, 'draft', '2025-08-15 10:03:22', '2025-08-15 10:03:22'),
+(31, 112, 121, 5, NULL, NULL, NULL, 'draft', '2025-08-15 11:32:43', '2025-08-15 11:32:43'),
+(32, 112, 121, 3, NULL, NULL, NULL, 'draft', '2025-08-15 11:32:58', '2025-08-15 11:32:58'),
+(33, 5, 121, 3, 'halllo,', '2025-08-15 12:52:39', '2025-08-15 12:54:08', 'submitted', '2025-08-15 12:00:30', '2025-08-15 12:54:08'),
+(35, 121, 135, 3, NULL, NULL, NULL, 'draft', '2025-08-15 12:30:31', '2025-08-15 12:30:31'),
+(36, 121, 135, 2, NULL, NULL, NULL, 'draft', '2025-08-15 12:31:45', '2025-08-15 12:31:45'),
+(37, 118, 5, 4, 'halooo', '2025-08-15 12:38:22', NULL, 'awaiting_employee', '2025-08-15 12:34:48', '2025-08-15 12:38:22'),
+(38, 118, 5, 8, 'halooo', '2025-08-15 12:38:08', NULL, 'awaiting_employee', '2025-08-15 12:36:05', '2025-08-15 12:38:08'),
+(39, 5, 121, 5, NULL, NULL, NULL, 'draft', '2025-08-15 12:53:53', '2025-08-15 12:53:53');
 
 -- --------------------------------------------------------
 
@@ -837,6 +1030,8 @@ CREATE TABLE `performance_indicators` (
   `description` text DEFAULT NULL,
   `weight` decimal(5,2) NOT NULL DEFAULT 0.00,
   `max_score` int(11) NOT NULL DEFAULT 5,
+  `role` varchar(50) DEFAULT NULL,
+  `department_id` int(11) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -847,14 +1042,22 @@ CREATE TABLE `performance_indicators` (
 -- Dumping data for table `performance_indicators`
 --
 
-INSERT INTO `performance_indicators` (`id`, `name`, `description`, `weight`, `max_score`, `is_active`, `created_at`, `updated_at`, `section_id`) VALUES
-(1, 'Quality of Work', 'Accuracy, thoroughness, and attention to detail in work output', 25.00, 5, 1, '2025-08-11 11:29:14', '2025-08-12 19:49:48', NULL),
-(2, 'Productivity', 'Efficiency in completing tasks and meeting deadlines', 20.00, 5, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
-(3, 'Communication Skills', 'Effectiveness in verbal and written communication', 15.00, 5, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
-(4, 'Teamwork & Collaboration', 'Ability to work effectively with colleagues and contribute to team goals', 15.00, 5, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
-(5, 'Initiative & Innovation', 'Proactive approach and creative problem-solving abilities', 10.00, 5, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
-(6, 'Professional Development', 'Commitment to learning and skill improvement', 10.00, 5, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
-(7, 'Attendance & Punctuality', 'Reliability in attendance and meeting scheduled commitments', 5.00, 5, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL);
+INSERT INTO `performance_indicators` (`id`, `name`, `description`, `weight`, `max_score`, `role`, `department_id`, `is_active`, `created_at`, `updated_at`, `section_id`) VALUES
+(1, 'Quality of Work', 'Accuracy, thoroughness, and attention to detail in work output', 25.00, 5, NULL, NULL, 1, '2025-08-11 11:29:14', '2025-08-12 19:49:48', NULL),
+(2, 'Productivity', 'Efficiency in completing tasks and meeting deadlines', 20.00, 5, NULL, NULL, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
+(3, 'Communication Skills', 'Effectiveness in verbal and written communication', 15.00, 5, NULL, NULL, 1, '2025-08-11 11:29:14', '2025-08-15 08:38:43', NULL),
+(4, 'Teamwork & Collaboration', 'Ability to work effectively with colleagues and contribute to team goals', 15.00, 5, NULL, NULL, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
+(5, 'Initiative & Innovation', 'Proactive approach and creative problem-solving abilities', 10.00, 5, NULL, NULL, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
+(6, 'Professional Development', 'Commitment to learning and skill improvement', 10.00, 5, NULL, NULL, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
+(7, 'Attendance & Punctuality', 'Reliability in attendance and meeting scheduled commitments', 5.00, 5, NULL, NULL, 1, '2025-08-11 11:29:14', '2025-08-11 11:29:14', NULL),
+(9, 'Customer Service Excellence', 'Quality of customer interaction and problem resolution', 15.00, 5, NULL, NULL, 1, '2025-08-15 07:47:04', '2025-08-15 07:47:04', NULL),
+(10, 'Technical Competency', 'Mastery of job-related technical skills and knowledge', 20.00, 5, NULL, NULL, 1, '2025-08-15 07:47:04', '2025-08-15 07:47:04', NULL),
+(11, 'Leadership Potential', 'Demonstration of leadership qualities and mentoring abilities', 10.00, 5, NULL, NULL, 1, '2025-08-15 07:47:04', '2025-08-15 07:47:04', NULL),
+(12, 'Adaptability', 'Flexibility in handling change and new challenges', 10.00, 5, NULL, NULL, 1, '2025-08-15 07:47:04', '2025-08-15 07:47:04', NULL),
+(13, 'Workplan', 'Ensure departmnta goals are aligned with the organizational goals', 20.00, 5, NULL, NULL, 1, '2025-08-15 08:25:00', '2025-08-15 08:25:00', 1),
+(14, 'compliance', 'Regulatory:Ensure 10% compliance with local and legistlative bodies', 20.00, 5, NULL, NULL, 1, '2025-08-15 08:25:56', '2025-08-15 08:25:56', 1),
+(15, 'strategies formulated', 'Enhanced employer branding:Formulate strategies on enhancing employers brand', 20.00, 5, NULL, NULL, 1, '2025-08-15 08:28:27', '2025-08-15 08:28:27', 1),
+(16, 'Workplans', 'Ensure departmentalk goals are aligned with the organizatinal goals', 20.00, 5, 'dept_head', 2, 1, '2025-08-15 09:41:22', '2025-08-15 09:41:22', NULL);
 
 -- --------------------------------------------------------
 
@@ -927,6 +1130,15 @@ INSERT INTO `users` (`id`, `email`, `first_name`, `last_name`, `gender`, `passwo
 (10, 'martinmwangi14@gmail.com', 'Mwangi', 'Mwangi', '', '$2y$10$Rf6GexZC1nDDg1gD73WpIeDIeJOmX8QI56pmfH0NzavJfpNfbmYUG', 'employee', '073354566645', 'Kihoya', NULL, '2025-07-25 05:03:20', '2025-07-25 05:03:20', 'EMP015'),
 (11, 'karenjuduncan70@gmail.com', 'Dancan', 'karenju', '', '$2y$10$mYYnwoy3bAbecDsaVwopbORSa1P2piRb/Iir/crANtRJFpbnkWekK', 'super_admin', '0112554479', 'Kiambu', NULL, '2025-07-29 10:09:46', '2025-07-29 10:09:46', 'EMP019');
 
+-- --------------------------------------------------------
+
+--
+-- Structure for view `completed_appraisals_view`
+--
+DROP TABLE IF EXISTS `completed_appraisals_view`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `completed_appraisals_view`  AS SELECT `ea`.`id` AS `id`, `ea`.`employee_id` AS `employee_id`, `ea`.`appraiser_id` AS `appraiser_id`, `ea`.`appraisal_cycle_id` AS `appraisal_cycle_id`, `ea`.`employee_comment` AS `employee_comment`, `ea`.`employee_comment_date` AS `employee_comment_date`, `ea`.`submitted_at` AS `submitted_at`, `ea`.`status` AS `status`, `ea`.`created_at` AS `created_at`, `ea`.`updated_at` AS `updated_at`, `ac`.`name` AS `cycle_name`, `ac`.`start_date` AS `start_date`, `ac`.`end_date` AS `end_date`, `e`.`first_name` AS `first_name`, `e`.`last_name` AS `last_name`, `e`.`employee_id` AS `emp_id`, `e`.`designation` AS `designation`, `d`.`name` AS `department_name`, `s`.`name` AS `section_name`, `e_appraiser`.`first_name` AS `appraiser_first_name`, `e_appraiser`.`last_name` AS `appraiser_last_name`, CASE WHEN month(`ac`.`start_date`) in (1,2,3) THEN 'Q1' WHEN month(`ac`.`start_date`) in (4,5,6) THEN 'Q2' WHEN month(`ac`.`start_date`) in (7,8,9) THEN 'Q3' WHEN month(`ac`.`start_date`) in (10,11,12) THEN 'Q4' ELSE 'Unknown' END AS `quarter`, (select avg(`as_`.`score` / `pi`.`max_score` * 100) from (`appraisal_scores` `as_` join `performance_indicators` `pi` on(`as_`.`performance_indicator_id` = `pi`.`id`)) where `as_`.`employee_appraisal_id` = `ea`.`id`) AS `average_score_percentage` FROM (((((`employee_appraisals` `ea` join `employees` `e` on(`ea`.`employee_id` = `e`.`id`)) left join `departments` `d` on(`e`.`department_id` = `d`.`id`)) left join `sections` `s` on(`e`.`section_id` = `s`.`id`)) join `appraisal_cycles` `ac` on(`ea`.`appraisal_cycle_id` = `ac`.`id`)) join `employees` `e_appraiser` on(`ea`.`appraiser_id` = `e_appraiser`.`id`)) WHERE `ea`.`status` = 'submitted' ;
+
 --
 -- Indexes for dumped tables
 --
@@ -935,7 +1147,8 @@ INSERT INTO `users` (`id`, `email`, `first_name`, `last_name`, `gender`, `passwo
 -- Indexes for table `appraisal_cycles`
 --
 ALTER TABLE `appraisal_cycles`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_appraisal_cycles_dates` (`start_date`,`end_date`);
 
 --
 -- Indexes for table `appraisal_scores`
@@ -945,6 +1158,13 @@ ALTER TABLE `appraisal_scores`
   ADD UNIQUE KEY `unique_appraisal_indicator` (`employee_appraisal_id`,`performance_indicator_id`),
   ADD KEY `employee_appraisal_id` (`employee_appraisal_id`),
   ADD KEY `performance_indicator_id` (`performance_indicator_id`);
+
+--
+-- Indexes for table `appraisal_summary_cache`
+--
+ALTER TABLE `appraisal_summary_cache`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_cycle_quarter` (`appraisal_cycle_id`,`quarter`);
 
 --
 -- Indexes for table `departments`
@@ -960,7 +1180,8 @@ ALTER TABLE `employees`
   ADD UNIQUE KEY `employee_id` (`employee_id`),
   ADD UNIQUE KEY `email` (`email`),
   ADD KEY `department_id` (`department_id`),
-  ADD KEY `section_id` (`section_id`);
+  ADD KEY `section_id` (`section_id`),
+  ADD KEY `idx_employees_dept_section` (`department_id`,`section_id`);
 
 --
 -- Indexes for table `employee_appraisals`
@@ -970,7 +1191,9 @@ ALTER TABLE `employee_appraisals`
   ADD UNIQUE KEY `unique_employee_cycle` (`employee_id`,`appraisal_cycle_id`),
   ADD KEY `employee_id` (`employee_id`),
   ADD KEY `appraiser_id` (`appraiser_id`),
-  ADD KEY `appraisal_cycle_id` (`appraisal_cycle_id`);
+  ADD KEY `appraisal_cycle_id` (`appraisal_cycle_id`),
+  ADD KEY `idx_employee_appraisals_status` (`status`),
+  ADD KEY `idx_employee_appraisals_submitted_at` (`submitted_at`);
 
 --
 -- Indexes for table `employee_leave_balances`
@@ -1066,13 +1289,19 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `appraisal_cycles`
 --
 ALTER TABLE `appraisal_cycles`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `appraisal_scores`
 --
 ALTER TABLE `appraisal_scores`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=374;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1224;
+
+--
+-- AUTO_INCREMENT for table `appraisal_summary_cache`
+--
+ALTER TABLE `appraisal_summary_cache`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `departments`
@@ -1090,7 +1319,7 @@ ALTER TABLE `employees`
 -- AUTO_INCREMENT for table `employee_appraisals`
 --
 ALTER TABLE `employee_appraisals`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT for table `employee_leave_balances`
@@ -1150,7 +1379,7 @@ ALTER TABLE `notifications`
 -- AUTO_INCREMENT for table `performance_indicators`
 --
 ALTER TABLE `performance_indicators`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `sections`
@@ -1174,6 +1403,12 @@ ALTER TABLE `users`
 ALTER TABLE `appraisal_scores`
   ADD CONSTRAINT `appraisal_scores_ibfk_1` FOREIGN KEY (`employee_appraisal_id`) REFERENCES `employee_appraisals` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `appraisal_scores_ibfk_2` FOREIGN KEY (`performance_indicator_id`) REFERENCES `performance_indicators` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `appraisal_summary_cache`
+--
+ALTER TABLE `appraisal_summary_cache`
+  ADD CONSTRAINT `appraisal_summary_cache_ibfk_1` FOREIGN KEY (`appraisal_cycle_id`) REFERENCES `appraisal_cycles` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `employees`

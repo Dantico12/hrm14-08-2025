@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $commentStmt = $conn->prepare("UPDATE employee_appraisals 
                                                  SET employee_comment = ?, 
                                                  employee_comment_date = CURRENT_TIMESTAMP,
-                                                 status = 'awaiting_submission'  // This is the key change
+                                                 status = 'awaiting_submission'
                                                  WHERE id = ?");
                     $commentStmt->bind_param("si", $comment, $appraisal_id);
                     $commentStmt->execute();
@@ -163,15 +163,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get active appraisal cycles
-$cyclesStmt = $conn->prepare("SELECT * FROM appraisal_cycles WHERE status = 'active' ORDER BY start_date DESC");
+// Get active appraisal cycles that haven't been submitted for selected employee
+$cyclesQuery = "
+    SELECT ac.* 
+    FROM appraisal_cycles ac
+    WHERE ac.status = 'active'
+    " . (isset($_GET['employee_id']) ? "AND NOT EXISTS (
+        SELECT 1 FROM employee_appraisals ea
+        WHERE ea.appraisal_cycle_id = ac.id
+        AND ea.employee_id = ?
+        AND ea.status = 'submitted'
+    )" : "") . "
+    ORDER BY ac.start_date DESC
+";
+
+$cyclesStmt = $conn->prepare($cyclesQuery);
+if (isset($_GET['employee_id'])) {
+    $cyclesStmt->bind_param("i", $_GET['employee_id']);
+}
 $cyclesStmt->execute();
 $cycles = $cyclesStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Get selected cycle (default to first active cycle)
 $selected_cycle_id = $_GET['cycle_id'] ?? ($cycles[0]['id'] ?? null);
 
-// Get employees based on user role with proper null checks
+// Get employees based on user role with proper null checks - exclude current user
 $employeesQuery = "";
 $employeesParams = [];
 
@@ -179,42 +195,45 @@ switch ($user['role']) {
     case 'section_head':
         if (!empty($currentEmployee['section_id'])) {
             $employeesQuery = "
-                SELECT e.id, e.first_name, e.last_name, e.employee_id, d.name as department_name, s.name as section_name
+                SELECT e.id, e.first_name, e.last_name, e.employee_id, d.name as department_name, s.name as section_name, u.role
                 FROM employees e
                 LEFT JOIN departments d ON e.department_id = d.id
                 LEFT JOIN sections s ON e.section_id = s.id
-                WHERE e.section_id = ? AND e.employee_status = 'active'
+                LEFT JOIN users u ON u.employee_id = e.id
+                WHERE e.section_id = ? AND e.employee_status = 'active' AND e.id != ?
                 ORDER BY e.first_name, e.last_name
             ";
-            $employeesParams = [$currentEmployee['section_id']];
+            $employeesParams = [$currentEmployee['section_id'], $currentEmployee['id']];
         }
         break;
         
     case 'dept_head':
         if (!empty($currentEmployee['department_id'])) {
             $employeesQuery = "
-                SELECT e.id, e.first_name, e.last_name, e.employee_id, d.name as department_name, s.name as section_name
+                SELECT e.id, e.first_name, e.last_name, e.employee_id, d.name as department_name, s.name as section_name, u.role
                 FROM employees e
                 LEFT JOIN departments d ON e.department_id = d.id
                 LEFT JOIN sections s ON e.section_id = s.id
-                WHERE e.department_id = ? AND e.employee_status = 'active'
+                LEFT JOIN users u ON u.employee_id = e.id
+                WHERE e.department_id = ? AND e.employee_status = 'active' AND e.id != ?
                 ORDER BY e.first_name, e.last_name
             ";
-            $employeesParams = [$currentEmployee['department_id']];
+            $employeesParams = [$currentEmployee['department_id'], $currentEmployee['id']];
         }
         break;
         
     case 'manager':
         if (!empty($currentEmployee['section_id'])) {
             $employeesQuery = "
-                SELECT e.id, e.first_name, e.last_name, e.employee_id, d.name as department_name, s.name as section_name
+                SELECT e.id, e.first_name, e.last_name, e.employee_id, d.name as department_name, s.name as section_name, u.role
                 FROM employees e
                 LEFT JOIN departments d ON e.department_id = d.id
                 LEFT JOIN sections s ON e.section_id = s.id
-                WHERE e.section_id = ? AND e.employee_status = 'active'
+                LEFT JOIN users u ON u.employee_id = e.id
+                WHERE e.section_id = ? AND e.employee_status = 'active' AND e.id != ?
                 ORDER BY e.first_name, e.last_name
             ";
-            $employeesParams = [$currentEmployee['section_id']];
+            $employeesParams = [$currentEmployee['section_id'], $currentEmployee['id']];
         }
         break;
         
@@ -222,14 +241,15 @@ switch ($user['role']) {
     case 'super_admin':
     case 'managing_director':
         $employeesQuery = "
-            SELECT e.id, e.first_name, e.last_name, e.employee_id, d.name as department_name, s.name as section_name
+            SELECT e.id, e.first_name, e.last_name, e.employee_id, d.name as department_name, s.name as section_name, u.role
             FROM employees e
             LEFT JOIN departments d ON e.department_id = d.id
             LEFT JOIN sections s ON e.section_id = s.id
-            WHERE e.employee_status = 'active'
+            LEFT JOIN users u ON u.employee_id = e.id
+            WHERE e.employee_status = 'active' AND e.id != ?
             ORDER BY e.first_name, e.last_name
         ";
-        $employeesParams = [];
+        $employeesParams = [$currentEmployee['id']];
         break;
 }
 
@@ -247,15 +267,55 @@ if (!empty($employeesQuery)) {
 // Get selected employee from GET parameter
 $selected_employee_id = $_GET['employee_id'] ?? null;
 
-// Get performance indicators
-$indicatorsStmt = $conn->prepare("
-    SELECT pi.* 
-    FROM performance_indicators pi
-    WHERE pi.is_active = 1
-    ORDER BY pi.weight DESC, pi.name
-");
-$indicatorsStmt->execute();
-$indicators = $indicatorsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+// Get performance indicators - Updated to filter by department/section/role
+$indicators = [];
+if ($selected_employee_id) {
+    // Get the employee being appraised details
+    $appraiseeStmt = $conn->prepare("
+        SELECT e.*, d.id as department_id, s.id as section_id, u.role 
+        FROM employees e
+        LEFT JOIN departments d ON e.department_id = d.id
+        LEFT JOIN sections s ON e.section_id = s.id
+        LEFT JOIN users u ON u.employee_id = e.id
+        WHERE e.id = ?
+    ");
+    $appraiseeStmt->bind_param("i", $selected_employee_id);
+    $appraiseeStmt->execute();
+    $appraiseeDetails = $appraiseeStmt->get_result()->fetch_assoc();
+
+    if ($appraiseeDetails) {
+        // Special handling for department heads and managing directors
+        $deptId = $appraiseeDetails['department_id'];
+        $sectionId = $appraiseeDetails['section_id'];
+        $role = $appraiseeDetails['role'];
+
+        if ($role === 'dept_head') {
+            $sectionId = null; // Department heads don't have sections
+        } elseif ($role === 'managing_director') {
+            $deptId = null;
+            $sectionId = null; // Managing directors don't belong to departments/sections
+        }
+
+        $indicatorsQuery = "
+            SELECT pi.* 
+            FROM performance_indicators pi
+            WHERE pi.is_active = 1
+            AND (
+                (pi.department_id IS NULL AND pi.section_id IS NULL AND pi.role IS NULL) OR
+                (pi.department_id = ? AND pi.section_id IS NULL AND pi.role IS NULL) OR
+                (pi.department_id = ? AND pi.section_id = ? AND pi.role IS NULL) OR
+                (pi.role = ? AND pi.department_id IS NULL AND pi.section_id IS NULL) OR
+                (pi.role = ?)
+            )
+            ORDER BY pi.weight DESC, pi.name
+        ";
+
+        $indicatorsStmt = $conn->prepare($indicatorsQuery);
+        $indicatorsStmt->bind_param("iiiss", $deptId, $deptId, $sectionId, $role, $role);
+        $indicatorsStmt->execute();
+        $indicators = $indicatorsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
+}
 
 // Get existing appraisals for the selected cycle and employee
 $appraisals = [];
@@ -266,6 +326,7 @@ if ($selected_cycle_id) {
         JOIN employees e ON ea.employee_id = e.id
         WHERE ea.appraisal_cycle_id = ?" . ($selected_employee_id ? " AND ea.employee_id = ?" : "") . "
         AND ea.appraiser_id = ?
+        AND (ea.status = 'draft' OR ea.status = 'awaiting_submission')
     ";
     
     $appraisalsStmt = $conn->prepare($appraisalsQuery);
@@ -280,6 +341,7 @@ if ($selected_cycle_id) {
 
 // Create appraisals for selected employee if they don't have one yet
 if ($selected_cycle_id && $selected_employee_id) {
+    // Check if an appraisal already exists (including completed ones)
     $checkStmt = $conn->prepare("
         SELECT id FROM employee_appraisals 
         WHERE employee_id = ? AND appraisal_cycle_id = ?
@@ -289,6 +351,7 @@ if ($selected_cycle_id && $selected_employee_id) {
     $result = $checkStmt->get_result();
     
     if ($result->num_rows === 0) {
+        // Only create new appraisal if none exists
         $createStmt = $conn->prepare("
             INSERT INTO employee_appraisals 
             (employee_id, appraiser_id, appraisal_cycle_id, status)
@@ -299,34 +362,9 @@ if ($selected_cycle_id && $selected_employee_id) {
         if ($createStmt->execute()) {
             $new_appraisal_id = $createStmt->insert_id;
             
-            $appraisals[] = [
-                'id' => $new_appraisal_id,
-                'employee_id' => $selected_employee_id,
-                'appraiser_id' => $currentEmployee['id'],
-                'appraisal_cycle_id' => $selected_cycle_id,
-                'employee_comment' => null,
-                'employee_comment_date' => null,
-                'submitted_at' => null,
-                'status' => 'draft',
-                'first_name' => '',
-                'last_name' => '',
-                'emp_id' => ''
-            ];
-            
-            // Get the employee details
-            $employeeStmt = $conn->prepare("
-                SELECT first_name, last_name, employee_id 
-                FROM employees 
-                WHERE id = ?
-            ");
-            $employeeStmt->bind_param("i", $selected_employee_id);
-            $employeeStmt->execute();
-            $employeeResult = $employeeStmt->get_result();
-            if ($employee = $employeeResult->fetch_assoc()) {
-                $appraisals[count($appraisals)-1]['first_name'] = $employee['first_name'];
-                $appraisals[count($appraisals)-1]['last_name'] = $employee['last_name'];
-                $appraisals[count($appraisals)-1]['emp_id'] = $employee['employee_id'];
-            }
+            // Refresh the page to show the new appraisal
+            header("Location: performance_appraisal.php?cycle_id=$selected_cycle_id&employee_id=$selected_employee_id");
+            exit();
         }
     }
 }
@@ -539,6 +577,35 @@ $conn->close();
             border-radius: 8px;
             border: 1px solid var(--border-color);
         }
+        
+        .indicator-scope {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        
+        .scope-global { color: var(--success-color); }
+        .scope-department { color: var(--primary-color); }
+        .scope-section { color: var(--warning-color); }
+        .scope-role { color: var(--info-color); }
+        
+        .no-appraisals {
+            padding: 2rem;
+            text-align: center;
+            background: var(--bg-glass);
+            border-radius: 8px;
+            border: 1px dashed var(--border-color);
+        }
+        
+        .no-appraisals h4 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .no-appraisals p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -602,6 +669,7 @@ $conn->close();
                     <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director'])): ?>
                         <a href="appraisal_management.php" class="leave-tab">Appraisal Management</a>
                     <?php endif; ?>
+                    <a href="completed_appraisals.php" class="leave-tab">Completed Appraisals</a>
                 </div>
 
                 <!-- Employee Selector -->
@@ -611,10 +679,12 @@ $conn->close();
                         <select id="employee-select" class="form-control" onchange="updateEmployeeSelection()">
                             <option value="">Select an employee...</option>
                             <?php foreach ($employees as $emp): ?>
-                                <option value="<?php echo $emp['id']; ?>" 
-                                    <?php echo ($selected_employee_id == $emp['id']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name'] . ' (' . $emp['employee_id'] . ') - ' . ($emp['department_name'] ?? 'N/A')); ?>
-                                </option>
+                                <?php if ($emp['id'] != $currentEmployee['id']): ?>
+                                    <option value="<?php echo $emp['id']; ?>" 
+                                        <?php echo ($selected_employee_id == $emp['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name'] . ' (' . $emp['employee_id'] . ') - ' . ($emp['department_name'] ?? 'N/A')); ?>
+                                    </option>
+                                <?php endif; ?>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -637,22 +707,8 @@ $conn->close();
                 </div>
 
                 <?php if ($selected_cycle_id && $selected_employee_id): ?>
-                    <?php 
-                    // Filter appraisals to only show the selected employee and hide drafts unless show_drafts is set
-                    $filtered_appraisals = array_filter($appraisals, function($a) use ($selected_employee_id) {
-                        return $a['employee_id'] == $selected_employee_id && (!isset($_GET['show_drafts']) || $a['status'] != 'draft');
-                    });
-                    
-                    if (empty($filtered_appraisals) && isset($_GET['show_drafts'])) {
-                        // If no non-draft appraisals and show_drafts is set, show drafts
-                        $filtered_appraisals = array_filter($appraisals, function($a) use ($selected_employee_id) {
-                            return $a['employee_id'] == $selected_employee_id;
-                        });
-                    }
-                    ?>
-                    
-                    <?php if (!empty($filtered_appraisals)): ?>
-                        <?php foreach ($filtered_appraisals as $appraisal): 
+                    <?php if (!empty($appraisals)): ?>
+                        <?php foreach ($appraisals as $appraisal): 
                             $is_readonly = ($appraisal['submitted_at'] !== null);
                             $employee_scores = $scores_by_appraisal[$appraisal['id']] ?? [];
                             
@@ -672,21 +728,12 @@ $conn->close();
                                         <div class="employee-details">
                                             <strong>Employee ID:</strong> <?php echo htmlspecialchars($appraisal['emp_id']); ?><br>
                                             <strong>Department:</strong> <?php echo htmlspecialchars($employeeDetails['department_name'] ?? 'N/A'); ?><br>
-                                            <strong>Section:</strong> <?php echo htmlspecialchars($employeeDetails['section_name'] ?? 'N/A'); ?>
+                                            <strong>Section:</strong> <?php echo htmlspecialchars($employeeDetails['section_name'] ?? 'N/A'); ?><br>
+                                            <strong>Role:</strong> <?php echo ucwords(str_replace('_', ' ', $employeeDetails['role'] ?? 'employee')); ?>
                                         </div>
                                     </div>
                                     <div class="appraisal-status">
-                                        <?php if ($appraisal['submitted_at']): ?>
-                                            <span class="badge badge-success">Submitted</span>
-                                            <div class="status-submitted">
-                                                Appraisal submitted on <?php echo date('M d, Y', strtotime($appraisal['submitted_at'])); ?>
-                                            </div>
-                                        <?php elseif ($appraisal['status'] === 'awaiting_employee'): ?>
-                                            <span class="badge badge-warning">Awaiting Employee</span>
-                                            <div class="status-awaiting">
-                                                Awaiting employee comment.
-                                            </div>
-                                        <?php elseif ($appraisal['status'] === 'awaiting_submission'): ?>
+                                        <?php if ($appraisal['status'] === 'awaiting_submission'): ?>
                                             <span class="badge badge-info">Awaiting Submission</span>
                                             <div class="status-awaiting-submission">
                                                 Employee has commented. Ready for supervisor submission.
@@ -709,13 +756,29 @@ $conn->close();
                                             <tr>
                                                 <th>Performance Indicator</th>
                                                 <th>Weight</th>
-                                                <th>Score </th>
+                                                <th>Score</th>
                                                 <th>Appraiser Comment</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php foreach ($indicators as $indicator): 
                                                 $score_data = $employee_scores[$indicator['id']] ?? null;
+                                                // Determine indicator scope for styling
+                                                $scope_class = '';
+                                                $scope_text = '';
+                                                if ($indicator['department_id'] && $indicator['section_id']) {
+                                                    $scope_class = 'scope-section';
+                                                    $scope_text = 'Section-specific';
+                                                } elseif ($indicator['department_id']) {
+                                                    $scope_class = 'scope-department';
+                                                    $scope_text = 'Department-wide';
+                                                } elseif ($indicator['role']) {
+                                                    $scope_class = 'scope-role';
+                                                    $scope_text = 'Role-specific (' . ucwords(str_replace('_', ' ', $indicator['role'])) . ')';
+                                                } else {
+                                                    $scope_class = 'scope-global';
+                                                    $scope_text = 'Global';
+                                                }
                                             ?>
                                                 <tr>
                                                     <td>
@@ -723,6 +786,9 @@ $conn->close();
                                                         <?php if ($indicator['description']): ?>
                                                             <br><small class="text-muted"><?php echo htmlspecialchars($indicator['description']); ?></small>
                                                         <?php endif; ?>
+                                                        <div class="indicator-scope <?php echo $scope_class; ?>">
+                                                            <?php echo $scope_text; ?>
+                                                        </div>
                                                     </td>
                                                     <td>
                                                         <span class="weight-badge"><?php echo $indicator['weight']; ?>%</span>
@@ -763,38 +829,37 @@ $conn->close();
                                         </small>
                                     </div>
                                 <?php elseif ($appraisal['status'] === 'awaiting_employee' && $user['id'] == $appraisal['employee_id']): ?>
-    <div class="employee-comment-form">
-        <h5>Your Comments</h5>
-        <form method="POST" action="">
-            <input type="hidden" name="action" value="save_employee_comment">
-            <input type="hidden" name="appraisal_id" value="<?php echo $appraisal['id']; ?>">
-            <div class="form-group">
-                <textarea name="employee_comment" class="form-control" placeholder="Enter your comments about this appraisal..." required></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Save Comments</button>
-        </form>
-    </div>
-<?php endif; ?>
+                                    <div class="employee-comment-form">
+                                        <h5>Your Comments</h5>
+                                        <form method="POST" action="">
+                                            <input type="hidden" name="action" value="save_employee_comment">
+                                            <input type="hidden" name="appraisal_id" value="<?php echo $appraisal['id']; ?>">
+                                            <div class="form-group">
+                                                <textarea name="employee_comment" class="form-control" placeholder="Enter your comments about this appraisal..." required></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">Save Comments</button>
+                                        </form>
+                                    </div>
+                                <?php endif; ?>
 
                                 <?php if ($appraisal['status'] === 'awaiting_submission' && !$is_readonly): ?>
-    <form method="POST" action="" style="margin-top: 1rem;">
-        <input type="hidden" name="action" value="submit_appraisal">
-        <input type="hidden" name="appraisal_id" value="<?php echo $appraisal['id']; ?>">
-        <button type="submit" class="btn btn-success" 
-                onclick="return confirm('Are you sure you want to submit this appraisal? This action cannot be undone.')">
-            Submit Appraisal
-        </button>
-    </form>
-<?php endif; ?>
+                                    <form method="POST" action="" style="margin-top: 1rem;">
+                                        <input type="hidden" name="action" value="submit_appraisal">
+                                        <input type="hidden" name="appraisal_id" value="<?php echo $appraisal['id']; ?>">
+                                        <button type="submit" class="btn btn-success" 
+                                                onclick="return confirm('Are you sure you want to submit this appraisal? This action cannot be undone.')">
+                                            Submit Appraisal
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <div class="alert alert-info">
-                            No appraisals found for this employee.
-                            <?php if (!isset($_GET['show_drafts'])): ?>
-                                <a href="performance_appraisal.php?cycle_id=<?php echo $selected_cycle_id; ?>&employee_id=<?php echo $selected_employee_id; ?>&show_drafts=1" class="alert-link">
-                                    Show draft appraisals
-                                </a>
+                        <div class="no-appraisals">
+                            <h4>No active appraisals for this employee and cycle</h4>
+                            <p>All quarters have been submitted or there are no drafts available.</p>
+                            <?php if (hasPermission('hr_manager') || hasPermission('super_admin')): ?>
+                                <a href="appraisal_management.php" class="btn btn-info mt-3">Manage Appraisals</a>
                             <?php endif; ?>
                         </div>
                     <?php endif; ?>
