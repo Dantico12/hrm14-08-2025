@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $name = trim($_POST['cycle_name']);
                 $start_date = $_POST['start_date'];
                 $end_date = $_POST['end_date'];
-                $status = 'active'; // Default to active
+                $status = 'active';
                 
                 if (!empty($name) && $start_date && $end_date && $start_date < $end_date) {
                     $stmt = $conn->prepare("INSERT INTO appraisal_cycles (name, start_date, end_date, status) VALUES (?, ?, ?, ?)");
@@ -78,15 +78,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $weight = (float)$_POST['weight'];
                 $max_score = (int)$_POST['max_score'];
                 $section_id = !empty($_POST['section_id']) ? $_POST['section_id'] : null;
+                $department_id = !empty($_POST['department_id']) ? $_POST['department_id'] : null;
+                $role = !empty($_POST['role']) ? $_POST['role'] : null;
                 $is_active = isset($_POST['is_active']) ? 1 : 0;
                 
                 if (!empty($name) && $weight > 0 && $max_score > 0) {
                     $stmt = $conn->prepare("
                         INSERT INTO performance_indicators 
-                        (name, description, weight, max_score, section_id, is_active) 
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        (name, description, weight, max_score, section_id, department_id, role, is_active) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ");
-                    $stmt->bind_param("ssdiis", $name, $description, $weight, $max_score, $section_id, $is_active);
+                    $stmt->bind_param("ssdiissi", $name, $description, $weight, $max_score, $section_id, $department_id, $role, $is_active);
                     
                     if ($stmt->execute()) {
                         $_SESSION['flash_message'] = 'Performance indicator created successfully!';
@@ -163,16 +165,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $weight = (float)$_POST['weight'];
                 $max_score = (int)$_POST['max_score'];
                 $section_id = !empty($_POST['section_id']) ? $_POST['section_id'] : null;
+                $department_id = !empty($_POST['department_id']) ? $_POST['department_id'] : null;
+                $role = !empty($_POST['role']) ? $_POST['role'] : null;
                 $is_active = isset($_POST['is_active']) ? 1 : 0;
                 
                 if (!empty($name) && $weight > 0 && $max_score > 0) {
                     $stmt = $conn->prepare("
                         UPDATE performance_indicators 
                         SET name = ?, description = ?, weight = ?, max_score = ?, 
-                            section_id = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP 
+                            section_id = ?, department_id = ?, role = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP 
                         WHERE id = ?
                     ");
-                    $stmt->bind_param("ssdiisi", $name, $description, $weight, $max_score, $section_id, $is_active, $id);
+                    $stmt->bind_param("ssdiissii", $name, $description, $weight, $max_score, $section_id, $department_id, $role, $is_active, $id);
                     
                     if ($stmt->execute()) {
                         $_SESSION['flash_message'] = 'Performance indicator updated successfully!';
@@ -211,26 +215,42 @@ $indicators = $conn->query("
            d.name as department_name
     FROM performance_indicators pi
     LEFT JOIN sections s ON pi.section_id = s.id
-    LEFT JOIN departments d ON s.department_id = d.id
+    LEFT JOIN departments d ON pi.department_id = d.id
     ORDER BY pi.is_active DESC, pi.weight DESC, pi.name
 ")->fetch_all(MYSQLI_ASSOC);
 
+// Get unique roles from employees
+$roles = $conn->query("
+    SELECT DISTINCT employee_type 
+    FROM employees 
+    WHERE employee_status = 'active'
+    ORDER BY employee_type
+")->fetch_all(MYSQLI_ASSOC);
+$roles = array_column($roles, 'employee_type');
+
 // Get sections with department info for dropdown
 $sections = $conn->query("
-    SELECT s.*, d.name as department_name 
+    SELECT s.*, d.name as department_name, d.id as department_id 
     FROM sections s
     LEFT JOIN departments d ON s.department_id = d.id
     ORDER BY d.name, s.name
 ")->fetch_all(MYSQLI_ASSOC);
 
-// Group sections by department for better dropdown organization
+// Get departments for dropdown
+$departments = $conn->query("
+    SELECT id, name
+    FROM departments
+    ORDER BY name
+")->fetch_all(MYSQLI_ASSOC);
+
+// Prepare sections data for JavaScript
 $sectionsByDepartment = [];
 foreach ($sections as $section) {
-    $deptName = $section['department_name'] ?? 'Other';
-    if (!isset($sectionsByDepartment[$deptName])) {
-        $sectionsByDepartment[$deptName] = [];
+    $deptId = $section['department_id'] ?? 0;
+    if (!isset($sectionsByDepartment[$deptId])) {
+        $sectionsByDepartment[$deptId] = [];
     }
-    $sectionsByDepartment[$deptName][] = $section;
+    $sectionsByDepartment[$deptId][] = $section;
 }
 
 $conn->close();
@@ -534,6 +554,43 @@ $conn->close();
         .form-full-width {
             grid-column: span 2;
         }
+
+        /* Tab styles */
+        .tab-nav {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-nav a {
+            padding: 0.75rem 1.5rem;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-nav a.active {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        .tab-nav a:hover {
+            color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -594,200 +651,230 @@ $conn->close();
                     <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director', 'section_head', 'dept_head'])): ?>
                     <a href="performance_appraisal.php" class="leave-tab">Performance Appraisal</a>
                     <?php endif; ?>
-                    <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing director', 'section_head'])): ?>
+                    <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director', 'section_head'])): ?>
                     <a href="appraisal_management.php" class="leave-tab active">Appraisal Management</a>
                     <?php endif; ?>
+                    <a href="completed_appraisals.php" class="leave-tab">Completed Appraisals</a>
                 </div>
-                
-                <div class="management-section">
-                    <h2>Create New Appraisal Cycle</h2>
-                    <form method="POST" action="">
-                        <input type="hidden" name="action" value="create_cycle">
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="cycle_name">Cycle Name</label>
-                                <input type="text" id="cycle_name" name="cycle_name" class="form-control" required placeholder="Q1 2025/2026 Performance Review">
+
+                <!-- Tab Navigation -->
+                <div class="tab-nav">
+                    <a href="#cycles" class="tab-link active" onclick="showTab('cycles')">Appraisal Cycles</a>
+                    <a href="#indicators" class="tab-link" onclick="showTab('indicators')">Performance Indicators</a>
+                </div>
+
+                <!-- Cycles Tab Content -->
+                <div id="cycles" class="tab-content active">
+                    <div class="management-section">
+                        <h2>Create New Appraisal Cycle</h2>
+                        <form method="POST" action="">
+                            <input type="hidden" name="action" value="create_cycle">
+                            
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="cycle_name">Cycle Name</label>
+                                    <input type="text" id="cycle_name" name="cycle_name" class="form-control" required placeholder="Q1 2025/2026 Performance Review">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="start_date">Start Date</label>
+                                    <input type="date" id="start_date" name="start_date" class="form-control" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="end_date">End Date</label>
+                                    <input type="date" id="end_date" name="end_date" class="form-control" required>
+                                </div>
                             </div>
                             
-                            <div class="form-group">
-                                <label for="start_date">Start Date</label>
-                                <input type="date" id="start_date" name="start_date" class="form-control" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="end_date">End Date</label>
-                                <input type="date" id="end_date" name="end_date" class="form-control" required>
-                            </div>
-                        </div>
-                        
-                        <button type="submit" class="btn btn-primary">Create Cycle</button>
-                    </form>
-                </div>
-                
-                <div class="management-section">
-                    <h2>Appraisal Cycles</h2>
-                    <div class="table-responsive">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Period</th>
-                                    <th>Status</th>
-                                    <th>Progress</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($cycles as $cycle): 
-                                    $progress = $cycle['appraisal_count'] > 0 ? 
-                                        round(($cycle['submitted_count'] / $cycle['appraisal_count']) * 100) : 0;
-                                ?>
+                            <button type="submit" class="btn btn-primary">Create Cycle</button>
+                        </form>
+                    </div>
+                    
+                    <div class="management-section">
+                        <h2>Appraisal Cycles</h2>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($cycle['name']); ?></td>
-                                        <td>
-                                            <?php echo date('M j, Y', strtotime($cycle['start_date'])); ?> - 
-                                            <?php echo date('M j, Y', strtotime($cycle['end_date'])); ?>
-                                        </td>
-                                        <td>
-                                            <form method="POST" action="" style="display: inline;">
-                                                <input type="hidden" name="action" value="update_cycle_status">
-                                                <input type="hidden" name="id" value="<?php echo $cycle['id']; ?>">
-                                                <select name="status" class="status-select" onchange="this.form.submit()">
-                                                    <option value="active" <?php echo $cycle['status'] === 'active' ? 'selected' : ''; ?>>Active</option>
-                                                    <option value="inactive" <?php echo $cycle['status'] === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
-                                                    <option value="completed" <?php echo $cycle['status'] === 'completed' ? 'selected' : ''; ?>>Completed</option>
-                                                </select>
-                                            </form>
-                                        </td>
-                                        <td>
-                                            <div class="progress-container">
-                                                <div class="progress-bar">
-                                                    <div class="progress-fill" style="width: <?php echo $progress; ?>%"></div>
-                                                </div>
-                                                <span class="progress-text">
-                                                    <?php echo $cycle['submitted_count']; ?>/<?php echo $cycle['appraisal_count']; ?> submitted
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button onclick="showCycleDetails(<?php echo $cycle['id']; ?>)" class="btn btn-sm btn-secondary">View</button>
-                                        </td>
+                                        <th>Name</th>
+                                        <th>Period</th>
+                                        <th>Status</th>
+                                        <th>Progress</th>
+                                        <th>Actions</th>
                                     </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($cycles as $cycle): 
+                                        $progress = $cycle['appraisal_count'] > 0 ? 
+                                            round(($cycle['submitted_count'] / $cycle['appraisal_count']) * 100) : 0;
+                                    ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($cycle['name']); ?></td>
+                                            <td>
+                                                <?php echo date('M j, Y', strtotime($cycle['start_date'])); ?> - 
+                                                <?php echo date('M j, Y', strtotime($cycle['end_date'])); ?>
+                                            </td>
+                                            <td>
+                                                <form method="POST" action="" style="display: inline;">
+                                                    <input type="hidden" name="action" value="update_cycle_status">
+                                                    <input type="hidden" name="id" value="<?php echo $cycle['id']; ?>">
+                                                    <select name="status" class="status-select" onchange="this.form.submit()">
+                                                        <option value="active" <?php echo $cycle['status'] === 'active' ? 'selected' : ''; ?>>Active</option>
+                                                        <option value="inactive" <?php echo $cycle['status'] === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                                                        <option value="completed" <?php echo $cycle['status'] === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                                    </select>
+                                                </form>
+                                            </td>
+                                            <td>
+                                                <div class="progress-container">
+                                                    <div class="progress-bar">
+                                                        <div class="progress-fill" style="width: <?php echo $progress; ?>%"></div>
+                                                    </div>
+                                                    <span class="progress-text">
+                                                        <?php echo $cycle['submitted_count']; ?>/<?php echo $cycle['appraisal_count']; ?> submitted
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <button onclick="showCycleDetails(<?php echo $cycle['id']; ?>)" class="btn btn-sm btn-secondary">View</button>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="management-section">
-                    <h2>Create New Performance Indicator</h2>
-                    <form method="POST" action="">
-                        <input type="hidden" name="action" value="create_indicator">
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="indicator_name">Indicator Name</label>
-                                <input type="text" id="indicator_name" name="indicator_name" class="form-control" required placeholder="Team Collaboration">
+
+                <!-- Indicators Tab Content -->
+                <div id="indicators" class="tab-content">
+                    <div class="management-section">
+                        <h2>Create New Performance Indicator</h2>
+                        <form method="POST" action="">
+                            <input type="hidden" name="action" value="create_indicator">
+                            
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="indicator_name">Indicator Name</label>
+                                    <input type="text" id="indicator_name" name="indicator_name" class="form-control" required placeholder="Team Collaboration">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="description">Description</label>
+                                    <textarea id="description" name="description" class="form-control" rows="2" placeholder="Measures how well the employee works with team members"></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="weight">Weight (%)</label>
+                                    <input type="number" id="weight" name="weight" class="form-control" min="1" max="100" step="0.1" required value="20">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="role">Role (Optional)</label>
+                                    <select id="role" name="role" class="form-control">
+                                        <option value="">-- Select Role --</option>
+                                        <?php foreach ($roles as $role): ?>
+                                            <option value="<?php echo htmlspecialchars($role); ?>">
+                                                <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $role))); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group" id="department-group">
+                                    <label for="department_id">Department (Optional)</label>
+                                    <select id="department_id" name="department_id" class="form-control">
+                                        <option value="">-- Select Department --</option>
+                                        <?php foreach ($departments as $dept): ?>
+                                            <option value="<?php echo $dept['id']; ?>">
+                                                <?php echo htmlspecialchars($dept['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group" id="section-group">
+                                    <label for="section_id">Section (Optional)</label>
+                                    <select id="section_id" name="section_id" class="form-control">
+                                        <option value="">-- Select Section --</option>
+                                        <?php foreach ($sections as $section): ?>
+                                            <option value="<?php echo $section['id']; ?>" data-department-id="<?php echo $section['department_id']; ?>">
+                                                <?php echo htmlspecialchars($section['name'] . ' (' . $section['department_name'] . ')'); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="max_score">Max Score</label>
+                                    <input type="number" id="max_score" name="max_score" class="form-control" min="1" required value="5">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" name="is_active" checked> Active
+                                    </label>
+                                </div>
                             </div>
                             
-                            <div class="form-group">
-                                <label for="description">Description</label>
-                                <textarea id="description" name="description" class="form-control" rows="2" placeholder="Measures how well the employee works with team members"></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="weight">Weight (%)</label>
-                                <input type="number" id="weight" name="weight" class="form-control" min="1" max="100" step="0.1" required value="20">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="max_score">Max Score</label>
-                                <input type="number" id="max_score" name="max_score" class="form-control" min="1" required value="5">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="section_id">Section (Optional)</label>
-                                <select id="section_id" name="section_id" class="form-control">
-                                    <option value="">-- General Indicator --</option>
-                                    <?php foreach ($sectionsByDepartment as $deptName => $deptSections): ?>
-                                        <optgroup label="<?php echo htmlspecialchars($deptName); ?>">
-                                            <?php foreach ($deptSections as $section): ?>
-                                                <option value="<?php echo $section['id']; ?>">
-                                                    <?php echo htmlspecialchars($section['name']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </optgroup>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>
-                                    <input type="checkbox" name="is_active" checked> Active
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <button type="submit" class="btn btn-primary">Create Indicator</button>
-                    </form>
-                </div>
-                
-                <div class="management-section">
-                    <h2>Performance Indicators</h2>
-                    <div class="table-responsive">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Description</th>
-                                    <th>Weight</th>
-                                    <th>Max</th>
-                                    <th>Section/Department</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($indicators as $indicator): ?>
+                            <button type="submit" class="btn btn-primary">Create Indicator</button>
+                        </form>
+                    </div>
+                    
+                    <div class="management-section">
+                        <h2>Performance Indicators</h2>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($indicator['name']); ?></td>
-                                        <td><?php echo htmlspecialchars($indicator['description']); ?></td>
-                                        <td><?php echo $indicator['weight']; ?>%</td>
-                                        <td><?php echo $indicator['max_score']; ?></td>
-                                        <td>
-                                            <?php if ($indicator['section_name']): ?>
-                                                <?php echo htmlspecialchars($indicator['section_name']); ?>
-                                                <small class="text-muted">(<?php echo htmlspecialchars($indicator['department_name']); ?>)</small>
-                                            <?php else: ?>
-                                                <span class="text-muted">General</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <form method="POST" action="" style="display: inline;">
-                                                <input type="hidden" name="action" value="update_indicator_status">
-                                                <input type="hidden" name="id" value="<?php echo $indicator['id']; ?>">
-                                                <label class="switch">
-                                                    <input type="checkbox" name="is_active" <?php echo $indicator['is_active'] ? 'checked' : ''; ?> onchange="this.form.submit()">
-                                                    <span class="slider round"></span>
-                                                </label>
-                                            </form>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group">
-                                                <button onclick="showIndicatorDetails(<?php echo $indicator['id']; ?>)" class="btn btn-sm btn-secondary">View</button>
-                                                <button onclick="showEditIndicator(<?php echo $indicator['id']; ?>)" class="btn btn-sm btn-secondary">Edit</button>
-                                                <form method="POST" action="" onsubmit="return confirm('Are you sure you want to delete this indicator?');">
-                                                    <input type="hidden" name="action" value="delete_indicator">
-                                                    <input type="hidden" name="id" value="<?php echo $indicator['id']; ?>">
-                                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                                </form>
-                                            </div>
-                                        </td>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Weight</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Section</th>
+                                        <th>Max</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($indicators as $indicator): ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($indicator['name']); ?></td>
+                                            <td><?php echo htmlspecialchars($indicator['description']); ?></td>
+                                            <td><?php echo $indicator['weight']; ?>%</td>
+                                            <td><?php echo $indicator['role'] ? htmlspecialchars(ucwords(str_replace('_', ' ', $indicator['role']))) : 'N/A'; ?></td>
+                                            <td><?php echo $indicator['department_name'] ? htmlspecialchars($indicator['department_name']) : 'N/A'; ?></td>
+                                            <td><?php echo $indicator['section_name'] ? htmlspecialchars($indicator['section_name']) : 'N/A'; ?></td>
+                                            <td><?php echo $indicator['max_score']; ?></td>
+                                            <td>
+                                                <form method="POST" action="" style="display: inline;">
+                                                    <input type="hidden" name="action" value="update_indicator_status">
+                                                    <input type="hidden" name="id" value="<?php echo $indicator['id']; ?>">
+                                                    <label class="switch">
+                                                        <input type="checkbox" name="is_active" <?php echo $indicator['is_active'] ? 'checked' : ''; ?> onchange="this.form.submit()">
+                                                        <span class="slider round"></span>
+                                                    </label>
+                                                </form>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <button onclick="showIndicatorDetails(<?php echo $indicator['id']; ?>)" class="btn btn-sm btn-secondary">View</button>
+                                                    <button onclick="showEditIndicator(<?php echo $indicator['id']; ?>)" class="btn btn-sm btn-secondary">Edit</button>
+                                                    <form method="POST" action="" onsubmit="return confirm('Are you sure you want to delete this indicator?');">
+                                                        <input type="hidden" name="action" value="delete_indicator">
+                                                        <input type="hidden" name="id" value="<?php echo $indicator['id']; ?>">
+                                                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -816,12 +903,20 @@ $conn->close();
                         <div class="detail-value" id="indicator-weight"></div>
                     </div>
                     <div class="detail-row">
-                        <div class="detail-label">Max Score</div>
-                        <div class="detail-value" id="indicator-max-score"></div>
+                        <div class="detail-label">Role</div>
+                        <div class="detail-value" id="indicator-role"></div>
                     </div>
                     <div class="detail-row">
-                        <div class="detail-label">Section/Department</div>
+                        <div class="detail-label">Department</div>
+                        <div class="detail-value" id="indicator-department"></div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Section</div>
                         <div class="detail-value" id="indicator-section"></div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Max Score</div>
+                        <div class="detail-value" id="indicator-max-score"></div>
                     </div>
                     <div class="detail-row">
                         <div class="detail-label">Status</div>
@@ -867,24 +962,42 @@ $conn->close();
                             <label for="edit-weight">Weight (%)</label>
                             <input type="number" id="edit-weight" name="weight" class="form-control" min="1" max="100" step="0.1" required>
                         </div>
+                        <div class="form-group" id="edit-department-group">
+                            <label for="edit-role">Role (Optional)</label>
+                            <select id="edit-role" name="role" class="form-control">
+                                <option value="">-- Select Role --</option>
+                                <?php foreach ($roles as $role): ?>
+                                    <option value="<?php echo htmlspecialchars($role); ?>">
+                                        <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $role))); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group" id="edit-department-group">
+                            <label for="edit-department-id">Department (Optional)</label>
+                            <select id="edit-department-id" name="department_id" class="form-control">
+                                <option value="">-- Select Department --</option>
+                                <?php foreach ($departments as $dept): ?>
+                                    <option value="<?php echo $dept['id']; ?>">
+                                        <?php echo htmlspecialchars($dept['name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group" id="edit-section-group">
+                            <label for="edit-section-id">Section (Optional)</label>
+                            <select id="edit-section-id" name="section_id" class="form-control">
+                                <option value="">-- Select Section --</option>
+                                <?php foreach ($sections as $section): ?>
+                                    <option value="<?php echo $section['id']; ?>" data-department-id="<?php echo $section['department_id']; ?>">
+                                        <?php echo htmlspecialchars($section['name'] . ' (' . $section['department_name'] . ')'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                         <div class="form-group">
                             <label for="edit-max-score">Max Score</label>
                             <input type="number" id="edit-max-score" name="max_score" class="form-control" min="1" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-section-id">Section (Optional)</label>
-                            <select id="edit-section-id" name="section_id" class="form-control">
-                                <option value="">-- General Indicator --</option>
-                                <?php foreach ($sectionsByDepartment as $deptName => $deptSections): ?>
-                                    <optgroup label="<?php echo htmlspecialchars($deptName); ?>">
-                                        <?php foreach ($deptSections as $section): ?>
-                                            <option value="<?php echo $section['id']; ?>">
-                                                <?php echo htmlspecialchars($section['name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </optgroup>
-                                <?php endforeach; ?>
-                            </select>
                         </div>
                         <div class="form-group">
                             <label>
@@ -962,14 +1075,35 @@ $conn->close();
     <script>
         // Initialize date inputs with reasonable defaults
         document.addEventListener('DOMContentLoaded', function() {
-            // Set default dates for new cycle (next month)
             const today = new Date();
             const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
             const endOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
             
             document.getElementById('start_date').valueAsDate = nextMonth;
             document.getElementById('end_date').valueAsDate = endOfNextMonth;
+
+            // Initialize tabs
+            showTab('cycles');
+
+            // Initialize role-based visibility
+            updateFieldVisibility('role', 'department-group', 'section-group');
+            updateFieldVisibility('edit-role', 'edit-department-group', 'edit-section-group');
+
+            // Initialize section filtering
+            updateSectionOptions('department_id', 'section_id');
+            updateSectionOptions('edit-department-id', 'edit-section-id');
         });
+
+        // Tab switching function
+        function showTab(tabId) {
+            // Remove active class from all tabs and content
+            document.querySelectorAll('.tab-link').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // Add active class to clicked tab and corresponding content
+            document.querySelector(`a[href="#${tabId}"]`).classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
 
         // Modal functions
         function closeModal(modalId) {
@@ -982,7 +1116,6 @@ $conn->close();
 
         // View Indicator Details
         function showIndicatorDetails(indicatorId) {
-            // Find the indicator in our PHP array
             const indicators = <?php echo json_encode($indicators); ?>;
             const indicator = indicators.find(i => i.id == indicatorId);
             
@@ -990,15 +1123,10 @@ $conn->close();
                 document.getElementById('indicator-name').textContent = indicator.name;
                 document.getElementById('indicator-description').textContent = indicator.description || 'N/A';
                 document.getElementById('indicator-weight').textContent = indicator.weight + '%';
+                document.getElementById('indicator-role').textContent = indicator.role ? indicator.role.replace(/_/g, ' ') : 'N/A';
+                document.getElementById('indicator-department').textContent = indicator.department_name || 'N/A';
+                document.getElementById('indicator-section').textContent = indicator.section_name || 'N/A';
                 document.getElementById('indicator-max-score').textContent = indicator.max_score;
-                
-                if (indicator.section_name && indicator.department_name) {
-                    document.getElementById('indicator-section').textContent = 
-                        `${indicator.section_name} (${indicator.department_name})`;
-                } else {
-                    document.getElementById('indicator-section').textContent = 'General';
-                }
-                
                 document.getElementById('indicator-status').textContent = 
                     indicator.is_active ? 'Active' : 'Inactive';
                 document.getElementById('indicator-created').textContent = 
@@ -1014,7 +1142,6 @@ $conn->close();
 
         // Edit Indicator
         function showEditIndicator(indicatorId) {
-            // Find the indicator in our PHP array
             const indicators = <?php echo json_encode($indicators); ?>;
             const indicator = indicators.find(i => i.id == indicatorId);
             
@@ -1023,9 +1150,14 @@ $conn->close();
                 document.getElementById('edit-name').value = indicator.name;
                 document.getElementById('edit-description').value = indicator.description || '';
                 document.getElementById('edit-weight').value = indicator.weight;
-                document.getElementById('edit-max-score').value = indicator.max_score;
+                document.getElementById('edit-role').value = indicator.role || '';
+                document.getElementById('edit-department-id').value = indicator.department_id || '';
                 document.getElementById('edit-section-id').value = indicator.section_id || '';
+                document.getElementById('edit-max-score').value = indicator.max_score;
                 document.getElementById('edit-is-active').checked = indicator.is_active == 1;
+                
+                updateSectionOptions('edit-department-id', 'edit-section-id', indicator.section_id);
+                updateFieldVisibility('edit-role', 'edit-department-group', 'edit-section-group');
                 
                 showModal('editIndicatorModal');
             } else {
@@ -1035,7 +1167,6 @@ $conn->close();
 
         // View Cycle Details
         function showCycleDetails(cycleId) {
-            // Find the cycle in our PHP array
             const cycles = <?php echo json_encode($cycles); ?>;
             const cycle = cycles.find(c => c.id == cycleId);
             
@@ -1065,6 +1196,62 @@ $conn->close();
                 showModal('cycleModal');
             } else {
                 alert('Cycle not found');
+            }
+        }
+
+        // Update field visibility based on role selection
+        function updateFieldVisibility(roleId, departmentGroupId, sectionGroupId) {
+            const roleSelect = document.getElementById(roleId);
+            const departmentGroup = document.getElementById(departmentGroupId);
+            const sectionGroup = document.getElementById(sectionGroupId);
+            
+            roleSelect.addEventListener('change', function() {
+                const role = this.value;
+                if (role === 'managing_director') {
+                    departmentGroup.classList.add('hidden');
+                    sectionGroup.classList.add('hidden');
+                    document.getElementById(departmentGroupId.replace('group', 'id')).value = '';
+                    document.getElementById(sectionGroupId.replace('group', 'id')).value = '';
+                } else if (role === 'dept_head') {
+                    departmentGroup.classList.remove('hidden');
+                    sectionGroup.classList.add('hidden');
+                    document.getElementById(sectionGroupId.replace('group', 'id')).value = '';
+                } else {
+                    departmentGroup.classList.remove('hidden');
+                    sectionGroup.classList.remove('hidden');
+                }
+                updateSectionOptions(departmentGroupId.replace('group', 'id'), sectionGroupId.replace('group', 'id'));
+            });
+        }
+
+        // Update section options based on selected department
+        function updateSectionOptions(departmentId, sectionId, selectedSectionId = null) {
+            const departmentSelect = document.getElementById(departmentId);
+            const sectionSelect = document.getElementById(sectionId);
+            const sectionsByDepartment = <?php echo json_encode($sectionsByDepartment); ?>;
+            
+            departmentSelect.addEventListener('change', function() {
+                const deptId = this.value;
+                sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
+                
+                if (deptId && sectionsByDepartment[deptId]) {
+                    sectionsByDepartment[deptId].forEach(section => {
+                        const option = document.createElement('option');
+                        option.value = section.id;
+                        option.textContent = `${section.name} (${section.department_name})`;
+                        option.setAttribute('data-department-id', section.department_id);
+                        if (selectedSectionId && section.id == selectedSectionId) {
+                            option.selected = true;
+                        }
+                        sectionSelect.appendChild(option);
+                    });
+                }
+            });
+            
+            // Trigger change event to initialize section options
+            if (departmentSelect.value) {
+                const event = new Event('change');
+                departmentSelect.dispatchEvent(event);
             }
         }
 

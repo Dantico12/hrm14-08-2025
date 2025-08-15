@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Update appraisal with employee comment
             $updateStmt = $conn->prepare("
                 UPDATE employee_appraisals 
-                SET employee_comment = ?, employee_comment_date = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+                SET employee_comment = ?, status= 'awaiting_submission',employee_comment_date = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
                 WHERE id = ? AND employee_id = ?
             ");
             $updateStmt->bind_param("sii", $employee_comment, $appraisal_id, $currentEmployee['id']);
