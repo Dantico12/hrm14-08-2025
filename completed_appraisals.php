@@ -55,10 +55,229 @@ $stmt->bind_param("i", $user['id']);
 $stmt->execute();
 $currentEmployee = $stmt->get_result()->fetch_assoc();
 
+// Export functions
+function exportToPDF($appraisal, $scores, $totalScore) {
+    // Generate the HTML content
+    $html = generateAppraisalHTML($appraisal, $scores, $totalScore);
+    
+    // Return the HTML to be processed by JavaScript
+    return $html;
+}
+
+function exportToWord($appraisal, $scores, $totalScore) {
+    // Clean any output buffers
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    // Start new output buffer
+    ob_start();
+    
+    // Set proper headers for Word document
+    header("Content-Type: application/vnd.ms-word; charset=utf-8");
+    header("Content-Disposition: attachment; filename=appraisal_" . $appraisal['emp_id'] . "_" . date('Y-m-d') . ".doc");
+    header("Cache-Control: no-cache, no-store, must-revalidate");
+    header("Pragma: no-cache");
+    header("Expires: 0");
+    
+    echo generateAppraisalHTML($appraisal, $scores, $totalScore);
+    
+    // Flush and clean buffer
+    ob_end_flush();
+    exit();
+}
+
+// Improved HTML generation function
+function generateAppraisalHTML($appraisal, $scores, $totalScore) {
+    // Ensure all variables are properly escaped
+    $employee_name = htmlspecialchars($appraisal['first_name'] . ' ' . $appraisal['last_name']);
+    $employee_id = htmlspecialchars($appraisal['emp_id']);
+    $cycle_name = htmlspecialchars($appraisal['cycle_name']);
+    $department = htmlspecialchars($appraisal['department_name'] ?? 'N/A');
+    $section = htmlspecialchars($appraisal['section_name'] ?? 'N/A');
+    $appraiser_name = htmlspecialchars($appraisal['appraiser_first_name'] . ' ' . $appraisal['appraiser_last_name']);
+    
+    $html = '<!DOCTYPE html>
+<html>
+<head>
+    <title>Performance Appraisal Report</title>
+    <meta charset="utf-8">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            line-height: 1.4; 
+            color: #333;
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+        }
+        .employee-info { 
+            margin-bottom: 20px; 
+        }
+        .info-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 10px 0; 
+        }
+        .info-table th, .info-table td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+        }
+        .info-table th { 
+            background-color: #f5f5f5; 
+            font-weight: bold; 
+            width: 30%;
+        }
+        .scores-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 20px 0; 
+        }
+        .scores-table th, .scores-table td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+        }
+        .scores-table th { 
+            background-color: #f5f5f5; 
+            font-weight: bold; 
+        }
+        .total-score { 
+            background-color: #e8f5e9; 
+            font-weight: bold; 
+        }
+        .comments-section { 
+            margin-top: 20px; 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            background: #f9f9f9; 
+        }
+        @media print {
+            body { margin: 0; }
+            .header h1 { color: #333; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Performance Appraisal Report</h1>
+        <h3>' . $cycle_name . '</h3>
+    </div>
+    
+    <div class="employee-info">
+        <h3>Employee Information</h3>
+        <table class="info-table">
+            <tr>
+                <th>Employee Name</th>
+                <td>' . $employee_name . '</td>
+            </tr>
+            <tr>
+                <th>Employee ID</th>
+                <td>' . $employee_id . '</td>
+            </tr>
+            <tr>
+                <th>Department</th>
+                <td>' . $department . '</td>
+            </tr>
+            <tr>
+                <th>Section</th>
+                <td>' . $section . '</td>
+            </tr>
+            <tr>
+                <th>Appraisal Period</th>
+                <td>' . date('M d, Y', strtotime($appraisal['start_date'])) . ' - ' . date('M d, Y', strtotime($appraisal['end_date'])) . '</td>
+            </tr>
+            <tr>
+                <th>Appraiser</th>
+                <td>' . $appraiser_name . '</td>
+            </tr>
+            <tr>
+                <th>Submitted Date</th>
+                <td>' . date('M d, Y H:i', strtotime($appraisal['submitted_at'])) . '</td>
+            </tr>
+        </table>
+    </div>
+    
+    <h3>Performance Scores</h3>
+    <table class="scores-table">
+        <thead>
+            <tr>
+                <th>Performance Indicator</th>
+                <th>Weight (%)</th>
+                <th>Score</th>
+                <th>Max Score</th>
+                <th>Percentage</th>
+                <th>Comments</th>
+            </tr>
+        </thead>
+        <tbody>';
+
+    // Add scores
+    if (!empty($scores)) {
+        foreach ($scores as $score) {
+            $percentage = ($score['score'] / $score['max_score']) * 100;
+            $indicator_name = htmlspecialchars($score['indicator_name'] ?? 'Performance Indicator');
+            $comment = htmlspecialchars($score['appraiser_comment'] ?? '');
+            
+            $html .= '
+            <tr>
+                <td>' . $indicator_name . '</td>
+                <td>' . intval($score['weight']) . '%</td>
+                <td>' . intval($score['score']) . '</td>
+                <td>' . intval($score['max_score']) . '</td>
+                <td>' . number_format($percentage, 1) . '%</td>
+                <td>' . $comment . '</td>
+            </tr>';
+        }
+    }
+    
+    $html .= '
+            <tr class="total-score">
+                <td colspan="4"><strong>Overall Score</strong></td>
+                <td><strong>' . number_format($totalScore, 1) . '%</strong></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>';
+
+    // Add employee comments if available
+    if (!empty($appraisal['employee_comment'])) {
+        $employee_comment = nl2br(htmlspecialchars($appraisal['employee_comment']));
+        $comment_date = date('M d, Y H:i', strtotime($appraisal['employee_comment_date']));
+        
+        $html .= '
+        <div class="comments-section">
+            <h3>Employee Comments</h3>
+            <p>' . $employee_comment . '</p>
+            <p><small>Commented on: ' . $comment_date . '</small></p>
+        </div>';
+    }
+
+    $html .= '
+    <div style="margin-top: 50px; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px;">
+        <p>Generated on: ' . date('M d, Y H:i:s') . '</p>
+        <p>HR Management System - Performance Appraisal Report</p>
+    </div>
+</body>
+</html>';
+
+    return $html;
+}
+
 // Handle export requests
 if (isset($_POST['export']) && isset($_POST['appraisal_id'])) {
-    $appraisal_id = $_POST['appraisal_id'];
+    $appraisal_id = intval($_POST['appraisal_id']);
     $export_type = $_POST['export_type'];
+    
+    // Validate inputs
+    if ($appraisal_id <= 0 || !in_array($export_type, ['pdf', 'word'])) {
+        die('Invalid export parameters');
+    }
     
     // Get detailed appraisal data for export
     $exportQuery = "
@@ -86,169 +305,81 @@ if (isset($_POST['export']) && isset($_POST['appraisal_id'])) {
     // Check if user has access to this appraisal
     if (!hasPermission('hr_manager')) {
         $exportQuery .= " AND ea.employee_id = ?";
-    }
-    
-    $exportStmt = $conn->prepare($exportQuery);
-    if (!hasPermission('hr_manager')) {
+        $exportStmt = $conn->prepare($exportQuery);
+        if (!$exportStmt) {
+            die('Database error: ' . $conn->error);
+        }
         $exportStmt->bind_param("ii", $appraisal_id, $currentEmployee['id']);
     } else {
+        $exportStmt = $conn->prepare($exportQuery);
+        if (!$exportStmt) {
+            die('Database error: ' . $conn->error);
+        }
         $exportStmt->bind_param("i", $appraisal_id);
     }
-    $exportStmt->execute();
+    
+    if (!$exportStmt->execute()) {
+        die('Query execution failed: ' . $exportStmt->error);
+    }
+    
     $appraisalData = $exportStmt->get_result()->fetch_assoc();
     
-    if ($appraisalData) {
-        // Get scores for this appraisal
-        $scoresQuery = "
-            SELECT 
-                as_.*,
-                pi.name as indicator_name,
-                pi.description as indicator_description,
-                pi.weight,
-                pi.max_score
-            FROM appraisal_scores as_
-            JOIN performance_indicators pi ON as_.performance_indicator_id = pi.id
-            WHERE as_.employee_appraisal_id = ?
-            ORDER BY pi.weight DESC, pi.name
-        ";
-        $scoresStmt = $conn->prepare($scoresQuery);
-        $scoresStmt->bind_param("i", $appraisal_id);
-        $scoresStmt->execute();
-        $scores = $scoresStmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        
-        // Calculate total score
-        $total_score = 0;
-        $total_weight = 0;
-        foreach ($scores as $score) {
+    if (!$appraisalData) {
+        die('Appraisal not found or access denied');
+    }
+    
+    // Get scores for this appraisal
+    $scoresQuery = "
+        SELECT 
+            as_.*,
+            pi.name as indicator_name,
+            pi.description as indicator_description,
+            pi.weight,
+            pi.max_score
+        FROM appraisal_scores as_
+        JOIN performance_indicators pi ON as_.performance_indicator_id = pi.id
+        WHERE as_.employee_appraisal_id = ?
+        ORDER BY pi.weight DESC, pi.name
+    ";
+    
+    $scoresStmt = $conn->prepare($scoresQuery);
+    if (!$scoresStmt) {
+        die('Database error: ' . $conn->error);
+    }
+    
+    $scoresStmt->bind_param("i", $appraisal_id);
+    if (!$scoresStmt->execute()) {
+        die('Query execution failed: ' . $scoresStmt->error);
+    }
+    
+    $scores = $scoresStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    
+    // Calculate total score
+    $total_score = 0;
+    $total_weight = 0;
+    foreach ($scores as $score) {
+        if ($score['max_score'] > 0) {
             $weighted_score = ($score['score'] / $score['max_score']) * $score['weight'];
             $total_score += $weighted_score;
             $total_weight += $score['weight'];
         }
-        $final_percentage = $total_weight > 0 ? ($total_score / $total_weight) * 100 : 0;
-        
-        // Handle different export types
-        switch ($export_type) {
-            case 'pdf':
-                exportToPDF($appraisalData, $scores, $final_percentage);
-                break;
-            case 'word':
-                exportToWord($appraisalData, $scores, $final_percentage);
-                break;
-            case 'print':
-                $print_data = [
-                    'appraisal' => $appraisalData,
-                    'scores' => $scores,
-                    'total_score' => $final_percentage
-                ];
-                break;
-        }
     }
-}
-
-// Export functions
-function exportToPDF($appraisal, $scores, $totalScore) {
-    // Simple HTML to PDF export
-    ob_clean();
-    header('Content-Type: application/pdf');
-    header('Content-Disposition: attachment; filename="appraisal_' . $appraisal['emp_id'] . '_' . date('Y-m-d') . '.pdf"');
+    $final_percentage = $total_weight > 0 ? ($total_score / $total_weight) * 100 : 0;
     
-    echo generateAppraisalHTML($appraisal, $scores, $totalScore);
-    exit();
-}
-
-function exportToWord($appraisal, $scores, $totalScore) {
-    ob_clean();
-    header("Content-Type: application/vnd.ms-word");
-    header("Content-Disposition: attachment; filename=appraisal_" . $appraisal['emp_id'] . "_" . date('Y-m-d') . ".doc");
-    
-    echo generateAppraisalHTML($appraisal, $scores, $totalScore);
-    exit();
-}
-
-function generateAppraisalHTML($appraisal, $scores, $totalScore) {
-    $html = '
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Performance Appraisal Report</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .employee-info { margin-bottom: 20px; }
-            .scores-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            .scores-table th, .scores-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            .scores-table th { background-color: #f5f5f5; }
-            .total-score { background-color: #e8f5e9; font-weight: bold; }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>Performance Appraisal Report</h1>
-            <h3>' . htmlspecialchars($appraisal['cycle_name']) . '</h3>
-        </div>
-        
-        <div class="employee-info">
-            <h3>Employee Information</h3>
-            <p><strong>Name:</strong> ' . htmlspecialchars($appraisal['first_name'] . ' ' . $appraisal['last_name']) . '</p>
-            <p><strong>Employee ID:</strong> ' . htmlspecialchars($appraisal['emp_id']) . '</p>
-            <p><strong>Department:</strong> ' . htmlspecialchars($appraisal['department_name'] ?? 'N/A') . '</p>
-            <p><strong>Section:</strong> ' . htmlspecialchars($appraisal['section_name'] ?? 'N/A') . '</p>
-            <p><strong>Appraisal Period:</strong> ' . date('M d, Y', strtotime($appraisal['start_date'])) . ' - ' . date('M d, Y', strtotime($appraisal['end_date'])) . '</p>
-            <p><strong>Appraiser:</strong> ' . htmlspecialchars($appraisal['appraiser_first_name'] . ' ' . $appraisal['appraiser_last_name']) . '</p>
-            <p><strong>Submitted Date:</strong> ' . date('M d, Y', strtotime($appraisal['submitted_at'])) . '</p>
-        </div>
-        
-        <h3>Performance Scores</h3>
-        <table class="scores-table">
-            <thead>
-                <tr>
-                    <th>Performance Indicator</th>
-                    <th>Weight (%)</th>
-                    <th>Score</th>
-                    <th>Max Score</th>
-                    <th>Percentage</th>
-                    <th>Comments</th>
-                </tr>
-            </thead>
-            <tbody>';
-    
-    foreach ($scores as $score) {
-        $percentage = ($score['score'] / $score['max_score']) * 100;
-        $html .= '
-                <tr>
-                    <td>' . htmlspecialchars($score['indicator_name']) . '</td>
-                    <td>' . $score['weight'] . '%</td>
-                    <td>' . $score['score'] . '</td>
-                    <td>' . $score['max_score'] . '</td>
-                    <td>' . number_format($percentage, 1) . '%</td>
-                    <td>' . htmlspecialchars($score['appraiser_comment']) . '</td>
-                </tr>';
+    // Handle different export types
+    switch ($export_type) {
+        case 'pdf':
+            $htmlContent = exportToPDF($appraisalData, $scores, $final_percentage);
+            // Return the HTML to be processed by JavaScript
+            echo $htmlContent;
+            exit();
+            break;
+        case 'word':
+            exportToWord($appraisalData, $scores, $final_percentage);
+            break;
+        default:
+            die('Invalid export type');
     }
-    
-    $html .= '
-                <tr class="total-score">
-                    <td colspan="4"><strong>Overall Score</strong></td>
-                    <td><strong>' . number_format($totalScore, 1) . '%</strong></td>
-                    <td></td>
-                </tr>
-            </tbody>
-        </table>';
-    
-    if ($appraisal['employee_comment']) {
-        $html .= '
-        <h3>Employee Comments</h3>
-        <p>' . nl2br(htmlspecialchars($appraisal['employee_comment'])) . '</p>
-        <p><small>Commented on: ' . date('M d, Y H:i', strtotime($appraisal['employee_comment_date'])) . '</small></p>';
-    }
-    
-    $html .= '
-        <div style="margin-top: 50px; font-size: 12px; color: #666;">
-            <p>Generated on: ' . date('M d, Y H:i:s') . '</p>
-        </div>
-    </body>
-    </html>';
-    
-    return $html;
 }
 
 // Get appraisal cycles for filtering
@@ -256,9 +387,17 @@ $cyclesStmt = $conn->prepare("SELECT * FROM appraisal_cycles ORDER BY start_date
 $cyclesStmt->execute();
 $cycles = $cyclesStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
+// Get employees for HR filtering
+$employees = [];
+if (hasPermission('hr_manager')) {
+    $employeesStmt = $conn->prepare("SELECT id, first_name, last_name, employee_id FROM employees ORDER BY first_name, last_name");
+    $employeesStmt->execute();
+    $employees = $employeesStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
 // Filter parameters
 $selected_cycle = $_GET['cycle_id'] ?? '';
-$selected_quarter = $_GET['quarter'] ?? '';
+$selected_employee = $_GET['employee_id'] ?? '';
 
 // Build query based on user permissions and filters
 $appraisalsQuery = "
@@ -293,32 +432,21 @@ if ($selected_cycle) {
     $paramTypes .= "i";
 }
 
-// Add quarter filter if specified
-if ($selected_quarter) {
-    switch ($selected_quarter) {
-        case 'Q1':
-            $appraisalsQuery .= " AND MONTH(ac.start_date) IN (1,2,3)";
-            break;
-        case 'Q2':
-            $appraisalsQuery .= " AND MONTH(ac.start_date) IN (4,5,6)";
-            break;
-        case 'Q3':
-            $appraisalsQuery .= " AND MONTH(ac.start_date) IN (7,8,9)";
-            break;
-        case 'Q4':
-            $appraisalsQuery .= " AND MONTH(ac.start_date) IN (10,11,12)";
-            break;
+// Employee filter (for HR) or restrict to current user
+if (hasPermission('hr_manager')) {
+    if ($selected_employee) {
+        $appraisalsQuery .= " AND ea.employee_id = ?";
+        $queryParams[] = $selected_employee;
+        $paramTypes .= "i";
     }
-}
-
-// Restrict access based on user role
-if (!hasPermission('hr_manager')) {
+} else {
+    // Non-HR users can only see their own appraisals
     $appraisalsQuery .= " AND ea.employee_id = ?";
     $queryParams[] = $currentEmployee['id'];
     $paramTypes .= "i";
 }
 
-$appraisalsQuery .= " ORDER BY ea.submitted_at DESC";
+$appraisalsQuery .= " ORDER BY ea.submitted_at DESC, ac.start_date DESC";
 
 $appraisalsStmt = $conn->prepare($appraisalsQuery);
 if (!empty($queryParams)) {
@@ -337,7 +465,8 @@ if (!empty($appraisals)) {
         SELECT 
             as_.*,
             pi.weight,
-            pi.max_score
+            pi.max_score,
+            pi.name as indicator_name
         FROM appraisal_scores as_
         JOIN performance_indicators pi ON as_.performance_indicator_id = pi.id
         WHERE as_.employee_appraisal_id IN ($placeholders)
@@ -363,26 +492,11 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Completed Appraisals - HR System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
-        .appraisal-card {
-            background: var(--bg-glass);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: var(--shadow-md);
-            border: 1px solid var(--border-color);
-        }
-        
-        .appraisal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-        
         .filters-section {
             background: var(--bg-glass);
             border-radius: 12px;
@@ -398,30 +512,68 @@ $conn->close();
             align-items: end;
         }
         
-        .score-display {
-            display: inline-block;
-            padding: 0.5rem 1rem;
+        .appraisals-table {
+            background: var(--bg-glass);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+        
+        .table th {
             background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             color: white;
-            border-radius: 20px;
+            padding: 1rem;
+            text-align: left;
             font-weight: 600;
-            font-size: 1.1rem;
+            border: none;
+        }
+        
+        .table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        
+        .table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .score-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 0.875rem;
         }
         
         .export-buttons {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.25rem;
             flex-wrap: wrap;
         }
         
         .btn-export {
-            padding: 0.5rem 1rem;
+            padding: 0.375rem 0.75rem;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             font-weight: 500;
             transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
         }
         
         .btn-pdf {
@@ -444,88 +596,79 @@ $conn->close();
             transform: translateY(-1px);
         }
         
+        .employee-info {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
         .employee-details {
             color: var(--text-secondary);
             font-size: 0.875rem;
-        }
-        
-        .quarter-badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            background: rgba(0, 212, 255, 0.2);
-            color: var(--primary-color);
-            border-radius: 15px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            margin-top: 0.25rem;
         }
         
         .no-results {
             text-align: center;
             padding: 3rem;
             color: var(--text-secondary);
+            background: var(--bg-glass);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
         }
-
-        /* Print Modal Styles */
-        .print-modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-
-        .print-modal-content {
-            background-color: white;
-            margin: 2% auto;
-            padding: 0;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .print-modal-header {
-            background: var(--primary-color);
-            color: white;
-            padding: 1rem;
-            border-radius: 8px 8px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .print-modal-body {
-            padding: 2rem;
-            color: #333;
-        }
-
-        .close-modal {
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .print-content {
-            font-family: Arial, sans-serif;
-        }
-
-        @media print {
-            .print-modal-header,
-            .no-print {
-                display: none !important;
+        
+        /* Responsive table */
+        @media (max-width: 1200px) {
+            .table {
+                font-size: 0.875rem;
             }
             
-            .print-modal-content {
-                width: 100% !important;
-                max-width: none !important;
-                margin: 0 !important;
-                box-shadow: none !important;
+            .table th,
+            .table td {
+                padding: 0.75rem 0.5rem;
             }
+            
+            .export-buttons {
+                flex-direction: column;
+                gap: 0.125rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .appraisals-table {
+                overflow-x: auto;
+            }
+            
+            .table {
+                min-width: 800px;
+            }
+        }
+
+        /* Loading states */
+        .btn-export:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .export-loading {
+            position: relative;
+        }
+
+        .export-loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -539,23 +682,24 @@ $conn->close();
             </div>
             <nav class="nav">
                 <ul>
-                    <li><a href="dashboard.php">Dashboard</a></li>
-                    <li><a href="employees.php">Employees</a></li>
+                    <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
+                    <li><a href="employees.php"><i class="fas fa-users"></i> Employees</a></li>
                     <?php if (hasPermission('hr_manager')): ?>
-                    <li><a href="departments.php">Departments</a></li>
+                    <li><a href="departments.php"><i class="fas fa-building"></i> Departments</a></li>
                     <?php endif; ?>
                     <?php if (hasPermission('super_admin')): ?>
-                    <li><a href="admin.php?tab=users">Admin</a></li>
+                    <li><a href="admin.php?tab=users"><i class="fas fa-cog"></i> Admin</a></li>
                     <?php elseif (hasPermission('hr_manager')): ?>
-                    <li><a href="admin.php?tab=financial">Admin</a></li>
+                    <li><a href="admin.php?tab=financial"><i class="fas fa-cog"></i> Admin</a></li>
                     <?php endif; ?>
                     <?php if (hasPermission('hr_manager')): ?>
-                    <li><a href="reports.php">Reports</a></li>
+                    <li><a href="reports.php"><i class="fas fa-chart-bar"></i> Reports</a></li>
                     <?php endif; ?>
                     <?php if (hasPermission('hr_manager') || hasPermission('super_admin') || hasPermission('dept_head') || hasPermission('officer')): ?>
-                    <li><a href="leave_management.php">Leave Management</a></li>
+                    <li><a href="leave_management.php"><i class="fas fa-calendar-alt"></i> Leave Management</a></li>
                     <?php endif; ?>
-                    <li><a href="employee_appraisal.php" class="active">Performance Appraisal</a></li>
+                    <li><a href="employee_appraisal.php"><i class="fas fa-chart-line"></i> Performance Appraisal</a></li>
+                    <li><a href="payroll.php"><i class="fas fa-money-check"></i> Payroll</a></li>
                 </ul>
             </nav>
         </div>
@@ -574,21 +718,36 @@ $conn->close();
             
             <div class="content">
                 <!-- Navigation Tabs -->
-             <div class="leave-tabs">
+                <div class="leave-tabs">
                     <a href="employee_appraisal.php" class="leave-tab">Employee Appraisal</a>
                     <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director', 'section_head', 'dept_head'])): ?>
                     <a href="performance_appraisal.php" class="leave-tab">Performance Appraisal</a>
                     <?php endif; ?>
                     <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing director', 'section_head'])): ?>
-                    <a href="appraisal_management.php" class="leave-tab active">Appraisal Management</a>
+                    <a href="appraisal_management.php" class="leave-tab">Appraisal Management</a>
                     <?php endif; ?>
-                       <a href="completed_appraisals.php" class="leave-tab active">Completed Appraisals</a>
+                    <a href="completed_appraisals.php" class="leave-tab active">Completed Appraisals</a>
                 </div>
+
                 <!-- Filters Section -->
                 <div class="filters-section">
                     <h3>Filter Appraisals</h3>
                     <form method="GET" action="">
                         <div class="filters-grid">
+                            <?php if (hasPermission('hr_manager')): ?>
+                            <div class="form-group">
+                                <label for="employee_id">Employee</label>
+                                <select name="employee_id" id="employee_id" class="form-control">
+                                    <option value="">All Employees</option>
+                                    <?php foreach ($employees as $employee): ?>
+                                        <option value="<?php echo $employee['id']; ?>" <?php echo ($selected_employee == $employee['id']) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name'] . ' (' . $employee['employee_id'] . ')'); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <?php endif; ?>
+                            
                             <div class="form-group">
                                 <label for="cycle_id">Appraisal Cycle</label>
                                 <select name="cycle_id" id="cycle_id" class="form-control">
@@ -602,17 +761,6 @@ $conn->close();
                             </div>
                             
                             <div class="form-group">
-                                <label for="quarter">Quarter</label>
-                                <select name="quarter" id="quarter" class="form-control">
-                                    <option value="">All Quarters</option>
-                                    <option value="Q1" <?php echo ($selected_quarter == 'Q1') ? 'selected' : ''; ?>>Q1 (Jan-Mar)</option>
-                                    <option value="Q2" <?php echo ($selected_quarter == 'Q2') ? 'selected' : ''; ?>>Q2 (Apr-Jun)</option>
-                                    <option value="Q3" <?php echo ($selected_quarter == 'Q3') ? 'selected' : ''; ?>>Q3 (Jul-Sep)</option>
-                                    <option value="Q4" <?php echo ($selected_quarter == 'Q4') ? 'selected' : ''; ?>>Q4 (Oct-Dec)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
                                 <button type="submit" class="btn btn-primary">Filter</button>
                                 <a href="completed_appraisals.php" class="btn btn-secondary">Clear</a>
                             </div>
@@ -620,89 +768,98 @@ $conn->close();
                     </form>
                 </div>
 
-                <!-- Appraisals List -->
+                <!-- Appraisals Table -->
                 <?php if (!empty($appraisals)): ?>
-                    <div class="appraisals-list">
-                        <?php foreach ($appraisals as $appraisal): 
-                            $appraisal_scores = $scores_by_appraisal[$appraisal['id']] ?? [];
-                            
-                            // Calculate total score
-                            $total_score = 0;
-                            $total_weight = 0;
-                            foreach ($appraisal_scores as $score) {
-                                $weighted_score = ($score['score'] / $score['max_score']) * $score['weight'];
-                                $total_score += $weighted_score;
-                                $total_weight += $score['weight'];
-                            }
-                            $final_percentage = $total_weight > 0 ? ($total_score / $total_weight) * 100 : 0;
-                            
-                            // Determine quarter
-                            $quarter = 'Q' . ceil(date('n', strtotime($appraisal['start_date'])) / 3);
-                        ?>
-                            <div class="appraisal-card">
-                                <div class="appraisal-header">
-                                    <div class="employee-info">
-                                        <h4><?php echo htmlspecialchars($appraisal['first_name'] . ' ' . $appraisal['last_name']); ?></h4>
-                                        <div class="employee-details">
-                                            <strong>Employee ID:</strong> <?php echo htmlspecialchars($appraisal['emp_id']); ?><br>
-                                            <strong>Department:</strong> <?php echo htmlspecialchars($appraisal['department_name'] ?? 'N/A'); ?><br>
-                                            <strong>Section:</strong> <?php echo htmlspecialchars($appraisal['section_name'] ?? 'N/A'); ?>
-                                        </div>
-                                    </div>
-                                    <div class="appraisal-summary">
-                                        <div class="score-display"><?php echo number_format($final_percentage, 1); ?>%</div>
-                                        <div style="margin-top: 0.5rem;">
-                                            <span class="quarter-badge"><?php echo $quarter; ?></span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="appraisal-details">
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 1rem;">
-                                        <div>
-                                            <h5>Appraisal Information</h5>
-                                            <p><strong>Cycle:</strong> <?php echo htmlspecialchars($appraisal['cycle_name']); ?></p>
-                                            <p><strong>Period:</strong> <?php echo date('M d, Y', strtotime($appraisal['start_date'])); ?> - <?php echo date('M d, Y', strtotime($appraisal['end_date'])); ?></p>
-                                            <p><strong>Appraiser:</strong> <?php echo htmlspecialchars($appraisal['appraiser_first_name'] . ' ' . $appraisal['appraiser_last_name']); ?></p>
-                                            <p><strong>Submitted:</strong> <?php echo date('M d, Y', strtotime($appraisal['submitted_at'])); ?></p>
-                                        </div>
-                                        
-                                        <div>
-                                            <h5>Export Options</h5>
+                    <div class="appraisals-table">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Cycle</th>
+                                    <th>Period</th>
+                                    <th>Score</th>
+                                    <th>Appraiser</th>
+                                    <th>Submitted</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($appraisals as $appraisal): 
+                                    $appraisal_scores = $scores_by_appraisal[$appraisal['id']] ?? [];
+                                    
+                                    // Calculate total score
+                                    $total_score = 0;
+                                    $total_weight = 0;
+                                    foreach ($appraisal_scores as $score) {
+                                        $weighted_score = ($score['score'] / $score['max_score']) * $score['weight'];
+                                        $total_score += $weighted_score;
+                                        $total_weight += $score['weight'];
+                                    }
+                                    $final_percentage = $total_weight > 0 ? ($total_score / $total_weight) * 100 : 0;
+                                ?>
+                                    <tr>
+                                        <td>
+                                            <div class="employee-info">
+                                                <?php echo htmlspecialchars($appraisal['first_name'] . ' ' . $appraisal['last_name']); ?>
+                                            </div>
+                                            <div class="employee-details">
+                                                ID: <?php echo htmlspecialchars($appraisal['emp_id']); ?><br>
+                                                <?php echo htmlspecialchars($appraisal['department_name'] ?? 'N/A'); ?>
+                                                <?php if ($appraisal['section_name']): ?>
+                                                    - <?php echo htmlspecialchars($appraisal['section_name']); ?>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong><?php echo htmlspecialchars($appraisal['cycle_name']); ?></strong>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <?php echo date('M d, Y', strtotime($appraisal['start_date'])); ?><br>
+                                                <small class="text-muted">to</small><br>
+                                                <?php echo date('M d, Y', strtotime($appraisal['end_date'])); ?>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="score-badge"><?php echo number_format($final_percentage, 1); ?>%</span>
+                                        </td>
+                                        <td>
+                                            <?php echo htmlspecialchars($appraisal['appraiser_first_name'] . ' ' . $appraisal['appraiser_last_name']); ?>
+                                        </td>
+                                        <td>
+                                            <?php echo date('M d, Y', strtotime($appraisal['submitted_at'])); ?>
+                                        </td>
+                                        <td>
                                             <div class="export-buttons">
                                                 <form method="POST" action="" style="display: inline;">
                                                     <input type="hidden" name="appraisal_id" value="<?php echo $appraisal['id']; ?>">
                                                     <input type="hidden" name="export_type" value="pdf">
-                                                    <button type="submit" name="export" class="btn-export btn-pdf">📄 PDF</button>
+                                                    <button type="submit" name="export" class="btn-export btn-pdf" title="Export PDF">PDF</button>
                                                 </form>
                                                 
                                                 <form method="POST" action="" style="display: inline;">
                                                     <input type="hidden" name="appraisal_id" value="<?php echo $appraisal['id']; ?>">
                                                     <input type="hidden" name="export_type" value="word">
-                                                    <button type="submit" name="export" class="btn-export btn-word">📝 Word</button>
+                                                    <button type="submit" name="export" class="btn-export btn-word" title="Export Word">Word</button>
                                                 </form>
                                                 
-                                                <button onclick="showPrintModal(<?php echo $appraisal['id']; ?>)" class="btn-export btn-print">🖨️ Print</button>
+                                                <button onclick="printAppraisal(<?php echo $appraisal['id']; ?>)" class="btn-export btn-print" title="Print">Print</button>
                                             </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <?php if ($appraisal['employee_comment']): ?>
-                                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 8px; border-left: 4px solid var(--primary-color);">
-                                            <h6>Employee Comment:</h6>
-                                            <p><?php echo nl2br(htmlspecialchars($appraisal['employee_comment'])); ?></p>
-                                            <small class="text-muted">Commented on <?php echo date('M d, Y H:i', strtotime($appraisal['employee_comment_date'])); ?></small>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div style="margin-top: 1rem; text-align: center; color: var(--text-secondary);">
+                        <small>Total: <?php echo count($appraisals); ?> completed appraisal(s)</small>
                     </div>
                 <?php else: ?>
                     <div class="no-results">
                         <h3>No Completed Appraisals Found</h3>
                         <p>There are no completed appraisals matching your current filters.</p>
-                        <?php if ($selected_cycle || $selected_quarter): ?>
+                        <?php if ($selected_cycle || $selected_employee): ?>
                             <a href="completed_appraisals.php" class="btn btn-primary">View All Appraisals</a>
                         <?php endif; ?>
                     </div>
@@ -711,27 +868,62 @@ $conn->close();
         </div>
     </div>
 
-    <!-- Print Modal -->
-    <div id="printModal" class="print-modal">
-        <div class="print-modal-content">
-            <div class="print-modal-header no-print">
-                <h3>Print Preview</h3>
-                <span class="close-modal" onclick="closePrintModal()">&times;</span>
-            </div>
-            <div class="print-modal-body">
-                <div id="printContent" class="print-content">
-                    <!-- Print content will be loaded here -->
-                </div>
-                <div style="text-align: center; margin-top: 20px;" class="no-print">
-                    <button onclick="printAppraisal()" class="btn btn-primary">🖨️ Print</button>
-                    <button onclick="closePrintModal()" class="btn btn-secondary">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
-        function showPrintModal(appraisalId) {
+        // Handle PDF export with proper PDF generation
+        document.querySelectorAll('form[method="POST"]').forEach(form => {
+            form.addEventListener('submit', async function(e) {
+                const exportType = this.querySelector('input[name="export_type"]').value;
+                
+                if (exportType === 'pdf') {
+                    e.preventDefault();
+                    
+                    const button = this.querySelector('button[name="export"]');
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '⏳ Generating PDF...';
+                    button.disabled = true;
+                    
+                    try {
+                        const formData = new FormData(this);
+                        const response = await fetch('completed_appraisals.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (!response.ok) throw new Error('Export failed');
+                        
+                        const html = await response.text();
+                        
+                        // Create a temporary element to hold the HTML
+                        const element = document.createElement('div');
+                        element.innerHTML = html;
+                        document.body.appendChild(element);
+                        
+                        // PDF generation options
+                        const opt = {
+                            margin: 10,
+                            filename: `appraisal_${formData.get('appraisal_id')}_${new Date().toISOString().slice(0,10)}.pdf`,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2 },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                        };
+                        
+                        // Generate PDF
+                        await html2pdf().set(opt).from(element).save();
+                        
+                        // Remove temporary element
+                        element.remove();
+                    } catch (error) {
+                        console.error('PDF generation failed:', error);
+                        alert('Failed to generate PDF. Please try again.');
+                    } finally {
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    }
+                }
+            });
+        });
+
+        function printAppraisal(appraisalId) {
             // Find the appraisal data
             const appraisals = <?php echo json_encode($appraisals); ?>;
             const scoresData = <?php echo json_encode($scores_by_appraisal); ?>;
@@ -754,58 +946,79 @@ $conn->close();
             });
             const finalPercentage = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0;
             
+            // Create a new window for printing
+            const printWindow = window.open('', '_blank');
+            
             // Generate print content
             let printHTML = `
-                <div style="text-align: center; margin-bottom: 30px;">
-                    <h1>Performance Appraisal Report</h1>
-                    <h3>${appraisal.cycle_name}</h3>
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <h3>Employee Information</h3>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9; width: 30%;"><strong>Name:</strong></td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${appraisal.first_name} ${appraisal.last_name}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Employee ID:</strong></td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${appraisal.emp_id}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Department:</strong></td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${appraisal.department_name || 'N/A'}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Section:</strong></td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${appraisal.section_name || 'N/A'}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Appraisal Period:</strong></td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${new Date(appraisal.start_date).toLocaleDateString()} - ${new Date(appraisal.end_date).toLocaleDateString()}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Appraiser:</strong></td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${appraisal.appraiser_first_name} ${appraisal.appraiser_last_name}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Submitted Date:</strong></td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${new Date(appraisal.submitted_at).toLocaleDateString()}</td>
-                        </tr>
-                    </table>
-                </div>
-                
-                <div style="margin-bottom: 20px;">
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Performance Appraisal Report - ${appraisal.first_name} ${appraisal.last_name}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; color: #333; }
+                        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f5f5f5; font-weight: bold; }
+                        .total-row { background-color: #e8f5e9; font-weight: bold; }
+                        .comments-section { margin-top: 20px; border: 1px solid #ddd; padding: 15px; background: #f9f9f9; }
+                        @media print {
+                            body { margin: 0; padding: 0; }
+                            .no-print { display: none !important; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Performance Appraisal Report</h1>
+                        <h3>${appraisal.cycle_name}</h3>
+                    </div>
+                    
+                    <div class="employee-info">
+                        <h3>Employee Information</h3>
+                        <table>
+                            <tr>
+                                <th>Employee Name</th>
+                                <td>${appraisal.first_name} ${appraisal.last_name}</td>
+                            </tr>
+                            <tr>
+                                <th>Employee ID</th>
+                                <td>${appraisal.emp_id}</td>
+                            </tr>
+                            <tr>
+                                <th>Department</th>
+                                <td>${appraisal.department_name || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Section</th>
+                                <td>${appraisal.section_name || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th>Appraisal Period</th>
+                                <td>${new Date(appraisal.start_date).toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'})} - ${new Date(appraisal.end_date).toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'})}</td>
+                            </tr>
+                            <tr>
+                                <th>Appraiser</th>
+                                <td>${appraisal.appraiser_first_name} ${appraisal.appraiser_last_name}</td>
+                            </tr>
+                            <tr>
+                                <th>Submitted Date</th>
+                                <td>${new Date(appraisal.submitted_at).toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
                     <h3>Performance Scores</h3>
-                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <table>
                         <thead>
                             <tr>
-                                <th style="border: 1px solid #ddd; padding: 12px; background: #f5f5f5; text-align: left;">Performance Indicator</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; background: #f5f5f5; text-align: center;">Weight (%)</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; background: #f5f5f5; text-align: center;">Score</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; background: #f5f5f5; text-align: center;">Max Score</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; background: #f5f5f5; text-align: center;">Percentage</th>
-                                <th style="border: 1px solid #ddd; padding: 12px; background: #f5f5f5; text-align: left;">Comments</th>
+                                <th>Performance Indicator</th>
+                                <th>Weight (%)</th>
+                                <th>Score</th>
+                                <th>Max Score</th>
+                                <th>Percentage</th>
+                                <th>Comments</th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -815,86 +1028,91 @@ $conn->close();
                 const percentage = (score.score / score.max_score) * 100;
                 printHTML += `
                     <tr>
-                        <td style="border: 1px solid #ddd; padding: 8px;">${score.indicator_name || 'Performance Indicator'}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${score.weight}%</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${score.score}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${score.max_score}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${percentage.toFixed(1)}%</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">${score.appraiser_comment || ''}</td>
+                        <td>${score.indicator_name || 'Performance Indicator'}</td>
+                        <td>${score.weight}%</td>
+                        <td>${score.score}</td>
+                        <td>${score.max_score}</td>
+                        <td>${percentage.toFixed(1)}%</td>
+                        <td>${score.appraiser_comment || ''}</td>
                     </tr>`;
             });
             
             printHTML += `
-                            <tr style="background: #e8f5e9; font-weight: bold;">
-                                <td style="border: 1px solid #ddd; padding: 8px;" colspan="4"><strong>Overall Score</strong></td>
-                                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;"><strong>${finalPercentage.toFixed(1)}%</strong></td>
-                                <td style="border: 1px solid #ddd; padding: 8px;"></td>
+                            <tr class="total-row">
+                                <td colspan="4"><strong>Overall Score</strong></td>
+                                <td><strong>${finalPercentage.toFixed(1)}%</strong></td>
+                                <td></td>
                             </tr>
                         </tbody>
-                    </table>
-                </div>`;
+                    </table>`;
             
             // Add employee comments if available
             if (appraisal.employee_comment) {
                 printHTML += `
-                    <div style="margin-bottom: 20px;">
+                    <div class="comments-section">
                         <h3>Employee Comments</h3>
-                        <div style="border: 1px solid #ddd; padding: 15px; background: #f9f9f9;">
-                            <p>${appraisal.employee_comment.replace(/\n/g, '<br>')}</p>
-                            <p style="font-size: 12px; color: #666; margin-top: 10px;">
-                                <strong>Commented on:</strong> ${new Date(appraisal.employee_comment_date).toLocaleString()}
-                            </p>
-                        </div>
+                        <p>${appraisal.employee_comment.replace(/\n/g, '<br>')}</p>
+                        <p><small>Commented on: ${new Date(appraisal.employee_comment_date).toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</small></p>
                     </div>`;
             }
             
             printHTML += `
-                <div style="margin-top: 50px; font-size: 12px; color: #666;">
-                    <p><strong>Generated on:</strong> ${new Date().toLocaleString()}</p>
-                </div>`;
+                    <div style="margin-top: 50px; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; text-align: center;">
+                        <p>Generated on: ${new Date().toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'})}</p>
+                        <p>HR Management System - Performance Appraisal Report</p>
+                    </div>
+                    
+                    <div class="no-print" style="text-align: center; margin-top: 20px;">
+                        <button onclick="window.print()" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Print Now</button>
+                        <button onclick="window.close()" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">Close</button>
+                    </div>
+                </body>
+                </html>`;
             
-            document.getElementById('printContent').innerHTML = printHTML;
-            document.getElementById('printModal').style.display = 'block';
+            // Write the content to the new window
+            printWindow.document.open();
+            printWindow.document.write(printHTML);
+            printWindow.document.close();
+            
+            // Focus the window (helps with some browsers)
+            printWindow.focus();
         }
         
-        function closePrintModal() {
-            document.getElementById('printModal').style.display = 'none';
-        }
+        // Sidebar toggle functionality
+        document.querySelector('.sidebar-toggle').addEventListener('click', function() {
+            document.querySelector('.sidebar').classList.toggle('collapsed');
+        });
         
-        function printAppraisal() {
-            window.print();
-        }
-        
-        // Close modal when clicking outside of it
-        window.onclick = function(event) {
-            const modal = document.getElementById('printModal');
-            if (event.target == modal) {
-                closePrintModal();
+        // Responsive table handling
+        function handleResponsiveTable() {
+            const table = document.querySelector('.table');
+            const container = document.querySelector('.appraisals-table');
+            
+            if (table && container) {
+                if (window.innerWidth <= 768) {
+                    container.style.overflowX = 'auto';
+                } else {
+                    container.style.overflowX = 'visible';
+                }
             }
         }
         
-        // Auto-submit form when filter changes
-        document.getElementById('cycle_id').addEventListener('change', function() {
-            if (this.value !== '') {
-                this.form.submit();
-            }
-        });
+        window.addEventListener('resize', handleResponsiveTable);
+        window.addEventListener('load', handleResponsiveTable);
         
-        document.getElementById('quarter').addEventListener('change', function() {
-            if (this.value !== '') {
-                this.form.submit();
+        // Auto-refresh data every 5 minutes to show new completed appraisals
+        setInterval(function() {
+            const currentUrl = new URL(window.location);
+            const searchParams = currentUrl.searchParams;
+            
+            // Add a timestamp to prevent caching
+            searchParams.set('refresh', Date.now());
+            
+            // Only auto-refresh if we're still on the same page
+            if (window.location.pathname.includes('completed_appraisals.php')) {
+                window.location.search = searchParams.toString();
             }
-        });
-        
-        // Add smooth scrolling for better UX
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
-            });
-        });
+        }, 300000); // 5 minutes
     </script>
 </body>
 </html>

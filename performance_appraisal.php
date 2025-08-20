@@ -267,10 +267,11 @@ if (!empty($employeesQuery)) {
 // Get selected employee from GET parameter
 $selected_employee_id = $_GET['employee_id'] ?? null;
 
-// Get performance indicators - Updated to filter by department/section/role
+// Get performance indicators with prioritized filtering
+// Get performance indicators with prioritized filtering (NO GLOBAL INDICATORS)
 $indicators = [];
 if ($selected_employee_id) {
-    // Get the employee being appraised details
+    // Get employee details
     $appraiseeStmt = $conn->prepare("
         SELECT e.*, d.id as department_id, s.id as section_id, u.role 
         FROM employees e
@@ -284,36 +285,68 @@ if ($selected_employee_id) {
     $appraiseeDetails = $appraiseeStmt->get_result()->fetch_assoc();
 
     if ($appraiseeDetails) {
-        // Special handling for department heads and managing directors
         $deptId = $appraiseeDetails['department_id'];
         $sectionId = $appraiseeDetails['section_id'];
         $role = $appraiseeDetails['role'];
 
-        if ($role === 'dept_head') {
-            $sectionId = null; // Department heads don't have sections
-        } elseif ($role === 'managing_director') {
-            $deptId = null;
-            $sectionId = null; // Managing directors don't belong to departments/sections
-        }
-
+        // Build query WITHOUT global indicators
         $indicatorsQuery = "
             SELECT pi.* 
             FROM performance_indicators pi
             WHERE pi.is_active = 1
             AND (
-                (pi.department_id IS NULL AND pi.section_id IS NULL AND pi.role IS NULL) OR
-                (pi.department_id = ? AND pi.section_id IS NULL AND pi.role IS NULL) OR
-                (pi.department_id = ? AND pi.section_id = ? AND pi.role IS NULL) OR
-                (pi.role = ? AND pi.department_id IS NULL AND pi.section_id IS NULL) OR
-                (pi.role = ?)
+                -- 1. Exact role match (required for all employees)
+                pi.role = ?
+                
+                ".($deptId ? "OR
+                -- 2. Department match (only if employee has a department)
+                (pi.department_id = ? AND pi.role IS NULL)
+                " : "")."
+                
+                ".($sectionId ? "OR
+                -- 3. Section match (only if employee has a section)
+                (pi.section_id = ? AND pi.role IS NULL)
+                " : "")."
             )
-            ORDER BY pi.weight DESC, pi.name
+            ORDER BY 
+                CASE 
+                    ".($sectionId ? "WHEN pi.section_id = ? THEN 1" : "")."
+                    ".($deptId ? "WHEN pi.department_id = ? THEN 2" : "")."
+                    WHEN pi.role = ? THEN 3
+                END,
+                pi.weight DESC, 
+                pi.name
         ";
 
+        // Prepare and bind parameters dynamically
+        $types = "s"; // Role is always bound
+        $params = [$role];
+        
+        if ($deptId) {
+            $types .= "i"; 
+            $params[] = $deptId; // WHERE department_id
+        }
+        if ($sectionId) {
+            $types .= "i";
+            $params[] = $sectionId; // WHERE section_id
+        }
+        if ($sectionId) {
+            $types .= "i";
+            $params[] = $sectionId; // ORDER BY section_id
+        }
+        if ($deptId) {
+            $types .= "i";
+            $params[] = $deptId; // ORDER BY department_id
+        }
+        $types .= "s";
+        $params[] = $role; // ORDER BY role
+
         $indicatorsStmt = $conn->prepare($indicatorsQuery);
-        $indicatorsStmt->bind_param("iiiss", $deptId, $deptId, $sectionId, $role, $role);
-        $indicatorsStmt->execute();
-        $indicators = $indicatorsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        if ($indicatorsStmt) {
+            $indicatorsStmt->bind_param($types, ...$params);
+            $indicatorsStmt->execute();
+            $indicators = $indicatorsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        }
     }
 }
 
@@ -584,7 +617,6 @@ $conn->close();
             margin-top: 0.25rem;
         }
         
-        .scope-global { color: var(--success-color); }
         .scope-department { color: var(--primary-color); }
         .scope-section { color: var(--warning-color); }
         .scope-role { color: var(--info-color); }
@@ -616,27 +648,26 @@ $conn->close();
                 <h1>HR System</h1>
                 <p>Management Portal</p>
             </div>
-            <nav class="nav">
+             <nav class="nav">
                 <ul>
-                    <li><a href="dashboard.php">Dashboard</a></li>
-                    <li><a href="employees.php">Employees</a></li>
+                    <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
+                    <li><a href="employees.php"><i class="fas fa-users"></i> Employees</a></li>
                     <?php if (hasPermission('hr_manager')): ?>
-                    <li><a href="departments.php">Departments</a></li>
+                    <li><a href="departments.php"><i class="fas fa-building"></i> Departments</a></li>
                     <?php endif; ?>
                     <?php if (hasPermission('super_admin')): ?>
-                    <li><a href="admin.php?tab=users">Admin</a></li>
-                    <?php elseif (hasPermission('hr_manager')): ?>
-                    <li><a href="admin.php?tab=financial">Admin</a></li>
-                    <?php endif; ?>
+                   <li><a href="admin.php?tab=users"><i class="fas fa-cog"></i> Admin</a></li>
+                   <?php elseif (hasPermission('hr_manager')): ?>
+                  <li><a href="admin.php?tab=financial"><i class="fas fa-cog"></i> Admin</a></li>
+                   <?php endif; ?>
                     <?php if (hasPermission('hr_manager')): ?>
-                    <li><a href="reports.php">Reports</a></li>
+                    <li><a href="reports.php"><i class="fas fa-chart-bar"></i> Reports</a></li>
                     <?php endif; ?>
-                    <?php if (hasPermission('hr_manager')|| hasPermission('super_admin')||hasPermission('dept_head')||hasPermission('officer')): ?>
-                    <li><a href="leave_management.php">Leave Management</a></li>
+                    <?php if (hasPermission('hr_manager') || hasPermission('super_admin') || hasPermission('dept_head') || hasPermission('officer')): ?>
+                    <li><a href="leave_management.php"><i class="fas fa-calendar-alt"></i> Leave Management</a></li>
                     <?php endif; ?>
-                    <?php if (hasPermission('section_head')): ?>
-                    <li><a href="employee_appraisal.php" class="active">Performance Appraisal</a></li>
-                    <?php endif; ?>
+                    <li><a href="employee_appraisal.php"><i class="fas fa-chart-line"></i> Performance Appraisal</a></li>
+                    <li><a href="payroll.php" class="active"><i class="fas fa-money-check"></i> Payroll</a></li>
                 </ul>
             </nav>
         </div>
@@ -766,18 +797,15 @@ $conn->close();
                                                 // Determine indicator scope for styling
                                                 $scope_class = '';
                                                 $scope_text = '';
-                                                if ($indicator['department_id'] && $indicator['section_id']) {
+                                                if ($indicator['role']) {
+                                                    $scope_class = 'scope-role';
+                                                    $scope_text = 'Role-specific (' . ucwords(str_replace('_', ' ', $indicator['role'])) . ')';
+                                                } elseif ($indicator['department_id'] && $indicator['section_id']) {
                                                     $scope_class = 'scope-section';
                                                     $scope_text = 'Section-specific';
                                                 } elseif ($indicator['department_id']) {
                                                     $scope_class = 'scope-department';
                                                     $scope_text = 'Department-wide';
-                                                } elseif ($indicator['role']) {
-                                                    $scope_class = 'scope-role';
-                                                    $scope_text = 'Role-specific (' . ucwords(str_replace('_', ' ', $indicator['role'])) . ')';
-                                                } else {
-                                                    $scope_class = 'scope-global';
-                                                    $scope_text = 'Global';
                                                 }
                                             ?>
                                                 <tr>

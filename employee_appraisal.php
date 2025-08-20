@@ -293,27 +293,26 @@ $conn->close();
                 <h1>HR System</h1>
                 <p>Management Portal</p>
             </div>
-            <nav class="nav">
+             <nav class="nav">
                 <ul>
-                    <li><a href="dashboard.php">Dashboard</a></li>
-                    <li><a href="employees.php">Employees</a></li>
+                    <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
+                    <li><a href="employees.php"><i class="fas fa-users"></i> Employees</a></li>
                     <?php if (hasPermission('hr_manager')): ?>
-                    <li><a href="departments.php">Departments</a></li>
+                    <li><a href="departments.php"><i class="fas fa-building"></i> Departments</a></li>
                     <?php endif; ?>
                     <?php if (hasPermission('super_admin')): ?>
-                   <li><a href="admin.php?tab=users">Admin</a></li>
+                   <li><a href="admin.php?tab=users"><i class="fas fa-cog"></i> Admin</a></li>
                    <?php elseif (hasPermission('hr_manager')): ?>
-                  <li><a href="admin.php?tab=financial">Admin</a></li>
+                  <li><a href="admin.php?tab=financial"><i class="fas fa-cog"></i> Admin</a></li>
                    <?php endif; ?>
                     <?php if (hasPermission('hr_manager')): ?>
-                    <li><a href="reports.php">Reports</a></li>
+                    <li><a href="reports.php"><i class="fas fa-chart-bar"></i> Reports</a></li>
                     <?php endif; ?>
-                    <?php if (hasPermission('hr_manager')|| hasPermission('super_admin')||hasPermission('dept_head')||hasPermission('officer')): ?>
-                    <li><a href="leave_management.php">Leave Management</a></li>
+                    <?php if (hasPermission('hr_manager') || hasPermission('super_admin') || hasPermission('dept_head') || hasPermission('officer')): ?>
+                    <li><a href="leave_management.php"><i class="fas fa-calendar-alt"></i> Leave Management</a></li>
                     <?php endif; ?>
-                    <?php if (hasPermission('section_head')): ?>
-                    <li><a href="employee_appraisal.php" class="active">Performance Appraisal</a></li>
-                    <?php endif; ?>
+                    <li><a href="employee_appraisal.php"><i class="fas fa-chart-line"></i> Performance Appraisal</a></li>
+                    <li><a href="payroll.php" class="active"><i class="fas fa-money-check"></i> Payroll</a></li>
                 </ul>
             </nav>
         </div>
@@ -336,15 +335,16 @@ $conn->close();
                         <?php echo htmlspecialchars($flash['message']); ?>
                     </div>
                 <?php endif; ?>
-
-                 <div class="leave-tabs">                    
-                    <a href="employee_appraisal.php" class="leave-tab active">Employee Appraisal</a>
+                
+                 <div class="leave-tabs">
+                    <a href="employee_appraisal.php" class="leave-tab">Employee Appraisal</a>
                     <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director', 'section_head', 'dept_head'])): ?>
-                    <a href="performance_appraisal.php" class="leave-tab">Performance Appraisal</a>
+                        <a href="performance_appraisal.php" class="leave-tab active">Performance Appraisal</a>
                     <?php endif; ?>
-                    <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing director'])): ?>
-                    <a href="appraisal_management.php" class="leave-tab">Appraisal Management</a>
+                    <?php if(in_array($user['role'], ['hr_manager', 'super_admin', 'manager','managing_director'])): ?>
+                        <a href="appraisal_management.php" class="leave-tab">Appraisal Management</a>
                     <?php endif; ?>
+                    <a href="completed_appraisals.php" class="leave-tab">Completed Appraisals</a>
                 </div>
                 
                 <?php if (!empty($appraisals)): ?>

@@ -1497,22 +1497,28 @@ if ($userEmployee) {
                 <h1>HR System</h1>
                 <p>Management Portal</p>
             </div>
-            <div class="nav">
+           <nav class="nav">
                 <ul>
-                    <li><a href="dashboard.php">Dashboard</a></li>
-                    <li><a href="employees.php">Employees</a></li>
+                    <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
+                    <li><a href="employees.php"><i class="fas fa-users"></i> Employees</a></li>
                     <?php if (hasPermission('hr_manager')): ?>
-                    <li><a href="departments.php">Departments</a></li>
+                    <li><a href="departments.php"><i class="fas fa-building"></i> Departments</a></li>
                     <?php endif; ?>
-                    <?php if (hasPermission('super_admin')|| hasPermission('hr_manager')): ?>
-                    <li><a href="admin.php">Admin</a></li>
-                    <?php endif; ?>
-                    <li><a href="leave_management.php" class="active">Leave Management</a></li>
+                    <?php if (hasPermission('super_admin')): ?>
+                   <li><a href="admin.php?tab=users"><i class="fas fa-cog"></i> Admin</a></li>
+                   <?php elseif (hasPermission('hr_manager')): ?>
+                  <li><a href="admin.php?tab=financial"><i class="fas fa-cog"></i> Admin</a></li>
+                   <?php endif; ?>
                     <?php if (hasPermission('hr_manager')): ?>
-                    <li><a href="reports.php">Reports</a></li>
+                    <li><a href="reports.php"><i class="fas fa-chart-bar"></i> Reports</a></li>
                     <?php endif; ?>
+                    <?php if (hasPermission('hr_manager') || hasPermission('super_admin') || hasPermission('dept_head') || hasPermission('officer')): ?>
+                    <li><a href="leave_management.php"><i class="fas fa-calendar-alt"></i> Leave Management</a></li>
+                    <?php endif; ?>
+                    <li><a href="employee_appraisal.php"><i class="fas fa-chart-line"></i> Performance Appraisal</a></li>
+                    <li><a href="payroll.php" class="active"><i class="fas fa-money-check"></i> Payroll</a></li>
                 </ul>
-            </div>
+            </nav>
         </div>
 
         <!-- Main Content -->
@@ -1643,45 +1649,70 @@ if ($userEmployee) {
 
            <div class="form-group">
     <label for="leave_type_id">Leave Type</label>
-    <select name="leave_type_id" id="leave_type_id" class="form-control" required>
-        <option value="">Select Leave Type</option>
-        <?php 
-        // Get the employee ID we're applying leave for
-        $selectedEmployeeId = isset($_POST['employee_id']) ? (int)$_POST['employee_id'] : ($userEmployee['id'] ?? 0);
-        
+  <select name="leave_type_id" id="leave_type_id" class="form-control" required>
+    <option value="">Select Leave Type</option>
+    <?php
+    // Get the employee ID we're applying leave for
+    $selectedEmployeeId = isset($_POST['employee_id']) ? (int)$_POST['employee_id'] : ($userEmployee['id'] ?? 0);
+
+    if ($selectedEmployeeId > 0) {
+        // First get the latest financial_year_id
+        $latestYearQuery = "SELECT MAX(financial_year_id) as latest_year FROM employee_leave_balances";
+        $latestYearResult = $conn->query($latestYearQuery);
+        $latestYear = $latestYearResult->fetch_assoc()['latest_year'] ?? date('Y');
+
         // Get leave types allocated to the selected employee (not the current user)
-        if ($selectedEmployeeId > 0) {
-            // First get the latest financial_year_id
-            $latestYearQuery = "SELECT MAX(financial_year_id) as latest_year FROM employee_leave_balances";
-            $latestYearResult = $conn->query($latestYearQuery);
-            $latestYear = $latestYearResult->fetch_assoc()['latest_year'] ?? date('Y');
-            
-            $stmt = $conn->prepare("SELECT elb.*, lt.name as leave_type_name, lt.max_days_per_year, 
-                                   lt.counts_weekends, lt.deducted_from_annual
-                                   FROM employee_leave_balances elb
-                                   JOIN leave_types lt ON elb.leave_type_id = lt.id
-                                   WHERE elb.employee_id = ? 
-                                   AND elb.financial_year_id = ?
-                                   AND lt.is_active = 1
-                                   ORDER BY lt.name");
-            $stmt->bind_param("ii", $selectedEmployeeId, $latestYear);
-            $stmt->execute();
-            $employeeLeaveTypes = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-            
-            foreach ($employeeLeaveTypes as $type): 
-        ?>
+        $stmt = $conn->prepare("SELECT elb.*, lt.name as leave_type_name, lt.max_days_per_year, lt.counts_weekends, lt.deducted_from_annual 
+                               FROM employee_leave_balances elb 
+                               JOIN leave_types lt ON elb.leave_type_id = lt.id 
+                               WHERE elb.employee_id = ? AND elb.financial_year_id = ? AND lt.is_active = 1 
+                               ORDER BY lt.name");
+        $stmt->bind_param("ii", $selectedEmployeeId, $latestYear);
+        $stmt->execute();
+        $employeeLeaveTypes = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        // Find the annual leave balance to use for Short Leave
+        $annualLeaveBalance = 0;
+        foreach ($employeeLeaveTypes as $index => $type) {
+            if ($type['leave_type_id'] == 1) { // Annual Leave
+                $annualLeaveBalance = $type['remaining_days'];
+                break;
+            }
+        }
+
+        // Add Short Leave if not already in the list
+        $hasShortLeave = false;
+        foreach ($employeeLeaveTypes as $type) {
+            if ($type['leave_type_id'] == 6) {
+                $hasShortLeave = true;
+                break;
+            }
+        }
+
+        if (!$hasShortLeave && $annualLeaveBalance > 0) {
+            $employeeLeaveTypes[] = [
+                'leave_type_id' => 6,
+                'remaining_days' => $annualLeaveBalance,
+                'counts_weekends' => 0,
+                'deducted_from_annual' => 1,
+                'leave_type_name' => 'Short Leave'
+            ];
+        }
+
+        // Output the options
+        foreach ($employeeLeaveTypes as $type):
+            ?>
             <option value="<?php echo $type['leave_type_id']; ?>" 
-                    data-max-days="<?php echo $type['remaining_days']; ?>"
-                    data-counts-weekends="<?php echo $type['counts_weekends']; ?>"
+                    data-max-days="<?php echo $type['remaining_days']; ?>" 
+                    data-counts-weekends="<?php echo $type['counts_weekends']; ?>" 
                     data-fallback="<?php echo $type['deducted_from_annual']; ?>">
-                <?php echo htmlspecialchars($type['leave_type_name']); ?>
+                <?php echo htmlspecialchars($type['leave_type_name']); ?> 
                 (Remaining: <?php echo $type['remaining_days']; ?> days)
             </option>
-        <?php 
-            endforeach;
+        <?php endforeach; 
         }
         ?>
-    </select>
+</select>
     <?php if (empty($employeeLeaveTypes)): ?>
     <small class="text-danger">No leave types allocated to this employee. Please contact HR.</small>
     <?php endif; ?>
@@ -1801,7 +1832,6 @@ if ($userEmployee) {
     </div>
 
     <script>
-       // Enhanced JavaScript for real-time leave deduction calculation
 document.addEventListener('DOMContentLoaded', function() {
     const startDateInput = document.getElementById('start_date');
     const endDateInput = document.getElementById('end_date');
@@ -1814,7 +1844,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Leave balances data (populated from PHP)
     const leaveBalances = <?php 
-        // Get all leave balances for current employee and latest financial year
         $employeeLeaveBalances = [];
         if ($userEmployee && isset($latestYear)) {
             $stmt = $conn->prepare("SELECT elb.*, lt.name as leave_type_name 
@@ -1886,9 +1915,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get available balance from employee_leave_balances
         const availablePrimaryBalance = leaveBalance ? parseInt(leaveBalance.remaining_days) : 0;
 
-        // Check maximum days per year
-        if (selectedLeaveType.max_days_per_year && requestedDays > parseInt(selectedLeaveType.max_days_per_year)) {
-            warnings.push(`⚠️ Requested days (${requestedDays}) exceed maximum allowed per year (${selectedLeaveType.max_days_per_year}).`);
+        // Check remaining days for the selected leave type
+        if (requestedDays > availablePrimaryBalance) {
+            warnings.push(`⚠️ Requested days (${requestedDays}) exceed remaining balance (${availablePrimaryBalance}) for ${selectedLeaveType.name}.`);
         }
 
         if (requestedDays <= availablePrimaryBalance) {
@@ -1986,33 +2015,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     employeeInput.addEventListener('change', function() {
-    const employeeId = this.value;
-    if (employeeId) {
-        // AJAX call to get leave types for selected employee
-        fetch('get_employee_leave_types.php?employee_id=' + employeeId)
-            .then(response => response.json())
-            .then(data => {
-                // Update leave type dropdown
-                const leaveTypeSelect = document.getElementById('leave_type_id');
-                leaveTypeSelect.innerHTML = '<option value="">Select Leave Type</option>';
-                
-                data.forEach(type => {
-                    const option = document.createElement('option');
-                    option.value = type.leave_type_id;
-                    option.textContent = `${type.leave_type_name} (Remaining: ${type.remaining_days} days)`;
-                    option.dataset.maxDays = type.remaining_days;
-                    option.dataset.countsWeekends = type.counts_weekends;
-                    option.dataset.fallback = type.deducted_from_annual;
-                    leaveTypeSelect.appendChild(option);
+        const employeeId = this.value;
+        if (employeeId) {
+            // AJAX call to get leave types for selected employee
+            fetch('get_employee_leave_types.php?employee_id=' + employeeId)
+                .then(response => response.json())
+                .then(data => {
+                    // Update leave type dropdown
+                    const leaveTypeSelect = document.getElementById('leave_type_id');
+                    leaveTypeSelect.innerHTML = '<option value="">Select Leave Type</option>';
+                    
+                    data.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type.leave_type_id;
+                        option.textContent = `${type.leave_type_name} (Remaining: ${type.remaining_days} days)`;
+                        option.dataset.maxDays = type.remaining_days;
+                        option.dataset.countsWeekends = type.counts_weekends;
+                        option.dataset.fallback = type.deducted_from_annual;
+                        leaveTypeSelect.appendChild(option);
+                    });
+                    
+                    // Recalculate if dates are already set
+                    if (startDateInput.value && endDateInput.value) {
+                        calculateDays();
+                    }
                 });
-                
-                // Recalculate if dates are already set
-                if (startDateInput.value && endDateInput.value) {
-                    calculateDays();
-                }
-            });
-    }
-});
+        }
+    });
 });
     </script>
 
